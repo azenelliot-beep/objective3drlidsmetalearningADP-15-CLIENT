@@ -1,8 +1,8 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "main": ONLY the thesis model (FedProx + DDQN + local record-level DP + ADP-Meta), eps 8, seed 0:
-#   1) ADP-Meta as before (v1)  2) ADP-Meta v2 (budget pacing + macro-F1 reward)  -> ~30 min on a T4.
-# Other stages ("auto", "sweep1", ...) are optional tuning runs. Block 18c prints the before/after table.
-STAGE = "main"
+# Default STAGE = "next": the thesis model (FedProx + DDQN + local record-level DP + ADP-Meta) with the Sweep-1
+# winners (clip x0.5 + false-alarm penalty 0.5), eps 8, seed 0. ADP-Meta runs FIRST, then 4 small refinements.
+# Block 18c compares every run with the fixed-noise reference on the same settings.
+STAGE = "next"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -23,7 +23,18 @@ SWEEP1 = [  # (TAG, one change, seeds, runs)
 ]
 MAIN = [("",   {},                        [0], [("dp_adpmeta", 8.0)]),     # before
         ("C5", dict(ADP_ACTIONS="pacing"),   [0], [("dp_adpmeta", 8.0)])]     # after: ADP-Meta v2
+BASE2 = dict(CLIP_MULT=0.5, REWARD_FA=0.5)                                  # Sweep-1 winners combined
+NEXT = [
+    ("S2base",    BASE2,                                              [0], [("dp_fixed", 8.0)]),   # reference
+    ("S2_ADPv2",  BASE2 | dict(ADP_ACTIONS="pacing"),                 [0], [("dp_adpmeta", 8.0)]), # ADP-Meta online
+    ("S2_ADPmeta", BASE2 | dict(ADP_ACTIONS="pacing", ADP_META_EPISODES=10), [0], [("dp_adpmeta", 8.0)]),  # + meta-learning
+    ("S2_CLIP0.25", BASE2 | dict(CLIP_MULT=0.25),                     [0], [("dp_fixed", 8.0)]),   # refinements (one change each)
+    ("S2_FA1.0",  BASE2 | dict(REWARD_FA=1.0),                        [0], [("dp_fixed", 8.0)]),
+    ("S2_MISS0.5", BASE2 | dict(REWARD_MISS=0.5),                     [0], [("dp_fixed", 8.0)]),
+    ("S2_B1024",  BASE2 | dict(BATCH=1024, LOCAL_STEPS=200),          [0], [("dp_fixed", 8.0)]),
+]
 STAGES = {
+    "next": NEXT,
     "main": MAIN,
     "auto": C0 + SWEEP1,
     "C0_baseline": C0,

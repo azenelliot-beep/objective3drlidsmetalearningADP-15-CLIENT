@@ -113,7 +113,26 @@ Block 18c prints `SWEEP vs baseline` with dMacroF1, dFAR and a verdict
 - C11 `MU` 0 and 0.1
 Defaults reproduce the previous behaviour exactly (tested). Winners are confirmed on seed 1, then combined.
 
-Validation effect: _pending._
+Validation effect (2026-10-11, seed 0, eps 8, per-client loop, selection rule as fixed):
+| run | val macro-F1 | val Acc | val FAR | cap met | verdict |
+|---|---|---|---|---|---|
+| dp_fixed (baseline) | 26.83 | 61.00 | 23.64 | no | - |
+| CLIPx0.5 | 49.10 (+22.3) | 79.39 | 15.09 | no | IMPROVES |
+| FA0.5 | 39.85 (+13.0) | 77.60 | 5.62 | yes | IMPROVES |
+| MISS0.5 | 46.10 (+19.3) | 72.31 | 26.56 | no | no (FAR +2.9) |
+| B1024_S200 / B2048_S100 / B1024_S100 | 39.17 / 36.12 / 34.18 | | 25.9-26.8 | no | no (FAR up) |
+| MU0 / LR3e-3 / W_val | 28.16 / 27.87 / 27.27 | | | no | no (< +2) |
+| POW1.0 / MU0.1 / CLIPx2 | 24.57 / 23.35 / 20.52 | | | no | no (worse) |
+| dp_adpmeta v1 (C0) | 22.41 | 59.32 | 19.61 | no | worse than fixed noise |
+| dp_clip_nonoise / fedprox_np / fedavg_np | 71.11 / 73.38 / 80.96 | 90.98 / 88.97 / 94.39 | 5.35 / 8.60 / 3.07 | yes | references |
+
+Findings: noise is still the main cost (clip-only 71.1 vs fixed DP 26.8). A smaller C reduces the noise
+(std sigma*C) more than it loses signal. The false-alarm penalty brings FAR under the cap. FedAvg > FedProx
+without privacy again, and mu = 0 is no worse under DP, so the thesis cannot claim a FedProx accuracy gain.
+W_val (weights from validation counts) is neutral (+0.4), so it can be adopted for the integrity reason
+alone. Raw output: `results/sweep1_val_output.txt`.
+Next ("next" stage): BASE2 = CLIPx0.5 + FA0.5 (fixed reference), ADP-Meta v2 online and with meta-learning
+on BASE2, and refinements CLIP0.25, FA1.0, MISS0.5, B1024x200 (one change each vs BASE2).
 
 ## Default stage = "main" (thesis model only)
 At the user's request the default Run All now trains ONLY FedProx + DDQN + local record-level DP + ADP-Meta

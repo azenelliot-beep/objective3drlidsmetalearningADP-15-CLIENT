@@ -1,4 +1,5 @@
 # BLOCK 18c (v4): Validation summary - SEND THIS OUTPUT BACK (no test numbers are involved)
+REF = "dp_fixed_eps8__S2base"      # reference run for the "vs reference" table (fixed noise, same settings)
 vdf = summarize_val()
 if vdf.empty:
     print("No finished runs in", CFG["RESULTS_DIR"])
@@ -28,6 +29,16 @@ else:
         print("\nBEFORE / AFTER (validation) - IMPROVES = +2 macro-F1 or more and FAR not worse by more than 1 point\n",
               cmp_df.round(2).to_string(index=False))
         cmp_df.to_csv(os.path.join(CFG["RESULTS_DIR"], "before_after.csv"), index=False)
+
+    ref = vdf[vdf["run"] == REF]
+    if len(ref):
+        rr = ref.iloc[0]
+        t = vdf[vdf["seed"] == rr["seed"]][["run", "best_round", "cap_met", "Acc", "MacroF1", "FAR", "DR", "eps"]].copy()
+        t["dMacroF1"], t["dAcc"], t["dFAR"] = t["MacroF1"] - rr["MacroF1"], t["Acc"] - rr["Acc"], t["FAR"] - rr["FAR"]
+        t["verdict"] = np.where((t["dMacroF1"] >= 2.0) & (t["dFAR"] <= 1.0), "IMPROVES", "no")
+        t.loc[t["run"] == REF, "verdict"] = "REFERENCE"
+        print(f"\nVS REFERENCE {REF} (validation)\n", t.sort_values("MacroF1", ascending=False).round(2).to_string(index=False))
+        t.to_csv(os.path.join(CFG["RESULTS_DIR"], "vs_reference.csv"), index=False)
 
     agg = vdf.groupby("run")[["MacroF1", "Acc", "FAR", "DR"]].agg(["mean", "std", "count"]).round(2)
     print("\nVALIDATION - mean / std / n over seeds\n", agg.to_string())

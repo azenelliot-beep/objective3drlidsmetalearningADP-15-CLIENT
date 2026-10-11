@@ -114,11 +114,20 @@ def test_block18b_stages_apply_overrides_on_fresh_defaults(nb, monkeypatch):
     saved = dict(nb["CFG"])
     monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
     try:
-        exec(src.replace('STAGE = "main"', 'STAGE = "C6_meta"'), nb)
-        exec(src.replace('STAGE = "main"', 'STAGE = "auto"'), nb)
-        exec(src, nb)                                     # default stage = main
+        exec(src.replace('STAGE = "next"', 'STAGE = "C6_meta"'), nb)
+        exec(src.replace('STAGE = "next"', 'STAGE = "auto"'), nb)
+        exec(src.replace('STAGE = "next"', 'STAGE = "main"'), nb)
+        n0 = len(calls)
+        exec(src, nb)                                     # default stage = next
     finally:
         nb["CFG"].clear(); nb["CFG"].update(saved)
+    nxt = calls[n0:]
+    calls = calls[:n0]
+    assert nxt[0][0]["TAG"] == "S2base" and nxt[0][0]["CLIP_MULT"] == 0.5 and nxt[0][0]["REWARD_FA"] == 0.5
+    assert nxt[2][0]["ADP_META_EPISODES"] == 10 and nxt[2][1] == [("dp_adpmeta", 8.0)]
+    for cfg, _, _ in nxt[3:]:                             # refinements: one change vs BASE2
+        ch = {k for k in cfg if k != "TAG" and cfg[k] != nxt[0][0][k]}
+        assert ch and (len(ch) == 1 or ch == {"BATCH", "LOCAL_STEPS"})
     c6, auto, main = calls[0], calls[1:-2], calls[-2:]
     assert [m[1] for m in main] == [[("dp_adpmeta", 8.0)]] * 2
     assert main[0][0]["ADP_ACTIONS"] == "mult" and main[1][0]["ADP_ACTIONS"] == "pacing" and main[1][0]["TAG"] == "C5"
@@ -162,3 +171,15 @@ def test_block18c_comparison_table(nb, small_cfg, tmp_path, monkeypatch):
     df = nb["cmp_df"]
     assert list(df["variant"]) == ["LR3e-3"] and df["verdict"].iloc[0] in ("IMPROVES", "no")
     assert (tmp_path / "results_jsons.zip").exists()
+
+
+def test_block18c_reference_table(nb, small_cfg, tmp_path, monkeypatch):
+    small_cfg.update(CLIP_MULT=0.5, REWARD_FA=0.5, TAG="S2base")
+    nb["run_all"]([("dp_fixed", 8.0)], [0])
+    small_cfg.update(ADP_ACTIONS="pacing", TAG="S2_ADPv2")
+    nb["run_all"]([("dp_adpmeta", 8.0)], [0])
+    monkeypatch.chdir(tmp_path)
+    exec(next(s for s in notebook_cells() if s.startswith("# BLOCK 18c ")), nb)
+    t = nb["t"]
+    assert set(t["run"]) == {"dp_fixed_eps8__S2base", "dp_adpmeta_eps8__S2_ADPv2"}
+    assert t.loc[t["run"] == "dp_fixed_eps8__S2base", "verdict"].item() == "REFERENCE"
