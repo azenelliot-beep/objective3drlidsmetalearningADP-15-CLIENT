@@ -1,8 +1,9 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "next": the thesis model (FedProx + DDQN + local record-level DP + ADP-Meta) with the Sweep-1
-# winners (clip x0.5 + false-alarm penalty 0.5), eps 8, seed 0. ADP-Meta runs FIRST, then 4 small refinements.
-# Block 18c compares every run with the fixed-noise reference on the same settings.
-STAGE = "next"
+# Default STAGE = "final": settings FROZEN after Sweeps 1-2 (clip x0.5 + false-alarm penalty 0.5, same reward for
+# every method). 3 paired seeds x {FedAvg, FedProx (non-private), fixed-noise DP, ADP-Meta DP with meta-learning}
+# x eps {1, 3, 8}. Controllers are meta-trained once per eps on validation and reused for all seeds.
+# Then: Block 18c (validation summary), and ONLY THEN set FINAL_TEST = True in Block 19 and run it once.
+STAGE = "final"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -33,6 +34,7 @@ NEXT = [
     ("S2_MISS0.5", BASE2 | dict(REWARD_MISS=0.5),                     [0], [("dp_fixed", 8.0)]),
     ("S2_B1024",  BASE2 | dict(BATCH=1024, LOCAL_STEPS=200),          [0], [("dp_fixed", 8.0)]),
 ]
+FINAL_CFG = BASE2 | dict(ADP_ACTIONS="pacing", ADP_META_EPISODES=10)        # frozen (CHANGELOG, Sweep 2)
 STAGES = {
     "next": NEXT,
     "main": MAIN,
@@ -42,11 +44,12 @@ STAGES = {
     # ADP-Meta v2 (run after the fixed-noise settings are chosen; add the accepted settings to cfg)
     "C5_pacing_online": [("C5", dict(ADP_ACTIONS="pacing"), [0], [("dp_adpmeta", 8.0)])],
     "C6_meta": [("C6", dict(ADP_ACTIONS="pacing", ADP_META_EPISODES=10), [0], [("dp_adpmeta", 8.0)])],
-    # FINAL (only after all ablations are frozen): put the accepted settings in cfg, 3 paired seeds, eps 1/3/8.
-    "final": [("final", {}, [0, 1, 2], [
+    # FINAL: frozen settings, 3 paired seeds, eps 1/3/8 (Chapter 5 reference rows are a separate optional stage)
+    "final": [("final", FINAL_CFG, [0, 1, 2], [
         ("fedavg_np", None), ("fedprox_np", None),
-        ("dp_fixed", 1.0), ("dp_adpmeta", 1.0), ("dp_fixed", 3.0), ("dp_adpmeta", 3.0),
-        ("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("fedavg_ch5", None), ("fedprox_ch5", None)])],
+        ("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("dp_fixed", 3.0), ("dp_adpmeta", 3.0),
+        ("dp_fixed", 1.0), ("dp_adpmeta", 1.0)])],
+    "ch5_reference": [("ch5", {}, [0, 1, 2], [("fedavg_ch5", None), ("fedprox_ch5", None)])],
 }
 
 for tag, over, seeds, exps in STAGES[STAGE]:

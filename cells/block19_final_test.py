@@ -2,6 +2,7 @@
 # Evaluates each run's validation-selected model on the test set and reports mean +/- std over seeds.
 # Nothing in this cell feeds back into any training or selection decision.
 FINAL_TEST = False          # <- set True only for the single final evaluation
+TEST_TAG = "final"          # only runs of the frozen final stage are evaluated
 
 if not FINAL_TEST:
     print("FINAL_TEST is False - test set not touched.")
@@ -9,6 +10,8 @@ else:
     rows = []
     for fn in sorted(os.listdir(CFG["RESULTS_DIR"])):
         if not (fn.endswith(".json") and "__seed" in fn) or fn.endswith("_TEST.json"):
+            continue
+        if TEST_TAG and not fn.split("__seed")[0].endswith(f"__{TEST_TAG}"):
             continue
         with open(os.path.join(CFG["RESULTS_DIR"], fn)) as f:
             r = json.load(f)
@@ -35,3 +38,17 @@ else:
     per_class = tdf.groupby("run")[[c for c in tdf.columns if c.startswith("F1_")]].agg(pm)
     print("\nTEST - per-class F1 mean ± std\n", per_class.T.to_string())
     table.to_csv(os.path.join(CFG["RESULTS_DIR"], "test_table_mean_std.csv"))
+
+    # Paired ADP-Meta vs fixed noise on TEST (same eps and seed)
+    pr = []
+    for _, c in tdf[tdf["run"].str.startswith("dp_adpmeta_eps")].iterrows():
+        f = tdf[(tdf["run"] == c["run"].replace("dp_adpmeta", "dp_fixed")) & (tdf["seed"] == c["seed"])]
+        if len(f):
+            pr.append({"run": c["run"], "seed": c["seed"], "dMacroF1": c["MacroF1"] - f.iloc[0]["MacroF1"],
+                       "dAcc": c["Acc"] - f.iloc[0]["Acc"], "dFAR": c["FAR"] - f.iloc[0]["FAR"]})
+    if pr:
+        pdt = pd.DataFrame(pr)
+        paired = pdt.groupby("run").agg(dMacroF1=("dMacroF1", pm), dAcc=("dAcc", pm), dFAR=("dFAR", pm),
+                                        seeds_ADP_better=("dMacroF1", lambda x: f"{int((x > 0).sum())}/{len(x)}"))
+        print("\nTEST - ADP-Meta minus fixed noise, paired by seed (mean ± std)\n", paired.to_string())
+        paired.to_csv(os.path.join(CFG["RESULTS_DIR"], "test_paired_adp_vs_fixed.csv"))

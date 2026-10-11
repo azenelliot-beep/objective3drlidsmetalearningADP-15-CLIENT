@@ -40,6 +40,21 @@ else:
         print(f"\nVS REFERENCE {REF} (validation)\n", t.sort_values("MacroF1", ascending=False).round(2).to_string(index=False))
         t.to_csv(os.path.join(CFG["RESULTS_DIR"], "vs_reference.csv"), index=False)
 
+    # Paired ADP-Meta vs fixed noise (same tag, eps and seed)
+    pairs = []
+    for _, c in vdf[vdf["run"].str.startswith("dp_adpmeta_eps")].iterrows():
+        f = vdf[(vdf["run"] == c["run"].replace("dp_adpmeta", "dp_fixed")) & (vdf["seed"] == c["seed"])]
+        if len(f):
+            f = f.iloc[0]
+            pairs.append({"run": c["run"], "seed": c["seed"], "ADP_F1": c["MacroF1"], "fixed_F1": f["MacroF1"],
+                          "dF1": c["MacroF1"] - f["MacroF1"], "ADP_FAR": c["FAR"], "fixed_FAR": f["FAR"]})
+    if pairs:
+        pdf_ = pd.DataFrame(pairs)
+        print("\nADP-Meta vs fixed noise, paired by seed (validation)\n", pdf_.round(2).to_string(index=False))
+        g = pdf_.groupby("run")["dF1"].agg(["mean", "std", "count", lambda x: int((x > 0).sum())])
+        g.columns = ["mean_dF1", "std_dF1", "seeds", "seeds_ADP_better"]
+        print(g.round(2).to_string())
+
     agg = vdf.groupby("run")[["MacroF1", "Acc", "FAR", "DR"]].agg(["mean", "std", "count"]).round(2)
     print("\nVALIDATION - mean / std / n over seeds\n", agg.to_string())
     vdf.to_csv(os.path.join(CFG["RESULTS_DIR"], "val_summary.csv"), index=False)

@@ -154,3 +154,32 @@ Tests: parameters identical to the per-client loop to 1e-5 (with and without cli
 Speed: no gain on CPU (compute-bound). The GPU gain is NOT measured yet. Each run's JSON records `minutes`.
 Note: runs on the fast path draw random numbers in a different order than the loop, so they are not
 bit-identical to earlier runs. Use one path consistently for every comparison (all new stages use it).
+
+## Sweep 2 - ADP-Meta v2 on the Sweep-1 winners (validation, seed 0, eps 8, fast path)
+BASE2 = clip x0.5 + false-alarm penalty 0.5 (C = 3.927).
+| run | val macro-F1 | val Acc | val FAR | cap met | vs reference |
+|---|---|---|---|---|---|
+| dp_fixed BASE2 (reference) | **49.01** | 80.74 | 7.58 | yes | - |
+| CLIP0.25 | 47.76 | 80.19 | 7.71 | yes | -1.2 (no) |
+| **ADP-Meta v2 + meta-learning (C6)** | 45.98 | 79.97 | 5.91 | yes | -3.0 (no) |
+| FA1.0 | 41.33 | 79.61 | 5.35 | yes | -7.7 (no) |
+| ADP-Meta v2 online (C5) | 40.67 | 79.24 | 5.10 | yes | -8.3 (no) |
+| MISS0.5 | 39.73 | 78.94 | 7.30 | yes | -9.3 (no) |
+| B1024x200 | 31.36 | 71.52 | 4.48 | yes | -17.7 (no) |
+
+Findings:
+- BASE2 fixed noise is the best private model so far: +22 macro-F1, +20 accuracy points, FAR from 23.6% to
+  7.6% vs the original fixed-noise baseline.
+- Meta-learning improves ADP-Meta by +5.3 over online learning (C6 vs C5) and beats v1 by a wide margin
+  (46.0 vs 22.4, but on different settings).
+- ADP-Meta (C6) is 3.0 below fixed noise on this single seed. That is within the single-seed noise seen so
+  far (classes swap between runs), so it is not settled. Decision: no further ADP-specific tuning (it
+  would bias the comparison). The question goes to the 3-seed paired comparison.
+- None of the refinements beat BASE2, so the settings are FROZEN: CLIP_MULT 0.5, REWARD_FA 0.5, same reward
+  for every method, ADP-Meta v2 with 10 meta-episodes per eps.
+
+## Final stage (default in Block 18b)
+Seeds 0/1/2 x {fedavg_np, fedprox_np, dp_fixed, dp_adpmeta} x eps {8, 3, 1}, tag "final". Block 18c adds a
+paired ADP-vs-fixed validation table. Block 19 (FINAL_TEST = True, run once) evaluates only "final" runs
+and adds a paired ADP-vs-fixed test table (mean ± std of the difference, seeds where ADP is better).
+Chapter 5 reference rows moved to an optional stage "ch5_reference".

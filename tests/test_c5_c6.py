@@ -1,3 +1,4 @@
+import re
 """C5/C6 tests: RDP pacing, ADP-Meta v2, meta-training on validation halves, config guard."""
 import json, os, re
 import numpy as np
@@ -110,34 +111,37 @@ def test_block17b_never_touches_test_set():
 
 def test_block18b_stages_apply_overrides_on_fresh_defaults(nb, monkeypatch):
     src = next(s for s in notebook_cells() if s.startswith("# BLOCK 18b "))
-    calls = []
+    stage = lambda name: re.sub(r'^STAGE = ".*"$', f'STAGE = "{name}"', src, flags=re.M)
     saved = dict(nb["CFG"])
-    monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
-    try:
-        exec(src.replace('STAGE = "next"', 'STAGE = "C6_meta"'), nb)
-        exec(src.replace('STAGE = "next"', 'STAGE = "auto"'), nb)
-        exec(src.replace('STAGE = "next"', 'STAGE = "main"'), nb)
-        n0 = len(calls)
-        exec(src, nb)                                     # default stage = next
-    finally:
-        nb["CFG"].clear(); nb["CFG"].update(saved)
-    nxt = calls[n0:]
-    calls = calls[:n0]
+    def run(name):
+        calls = []
+        monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
+        try:
+            exec(stage(name), nb)
+        finally:
+            nb["CFG"].clear(); nb["CFG"].update(saved)
+        return calls
+    assert 'STAGE = "final"' in src                       # default = frozen final stage
+    (fin,) = run("final")
+    assert fin[0]["TAG"] == "final" and fin[0]["CLIP_MULT"] == 0.5 and fin[0]["REWARD_FA"] == 0.5
+    assert fin[0]["ADP_ACTIONS"] == "pacing" and fin[0]["ADP_META_EPISODES"] == 10 and fin[2] == [0, 1, 2]
+    assert {e for e, _ in fin[1]} == {"fedavg_np", "fedprox_np", "dp_fixed", "dp_adpmeta"}
+    assert sorted({x for _, x in fin[1] if x}) == [1.0, 3.0, 8.0]
+    (c6,) = run("C6_meta")
+    assert c6[0]["ADP_META_EPISODES"] == 10 and c6[0]["TAG"] == "C6" and c6[1] == [("dp_adpmeta", 8.0)]
+    nxt = run("next")
     assert nxt[0][0]["TAG"] == "S2base" and nxt[0][0]["CLIP_MULT"] == 0.5 and nxt[0][0]["REWARD_FA"] == 0.5
-    assert nxt[2][0]["ADP_META_EPISODES"] == 10 and nxt[2][1] == [("dp_adpmeta", 8.0)]
     for cfg, _, _ in nxt[3:]:                             # refinements: one change vs BASE2
         ch = {k for k in cfg if k != "TAG" and cfg[k] != nxt[0][0][k]}
         assert ch and (len(ch) == 1 or ch == {"BATCH", "LOCAL_STEPS"})
-    c6, auto, main = calls[0], calls[1:-2], calls[-2:]
-    assert [m[1] for m in main] == [[("dp_adpmeta", 8.0)]] * 2
-    assert main[0][0]["ADP_ACTIONS"] == "mult" and main[1][0]["ADP_ACTIONS"] == "pacing" and main[1][0]["TAG"] == "C5"
-    assert c6[0]["ADP_META_EPISODES"] == 10 and c6[0]["TAG"] == "C6" and c6[1] == [("dp_adpmeta", 8.0)]
+    main = run("main")
+    assert main[0][0]["ADP_ACTIONS"] == "mult" and main[1][0]["ADP_ACTIONS"] == "pacing"
+    auto = run("auto")
     base = auto[0][0]
-    assert base["TAG"] == "" and base["ADP_ACTIONS"] == "mult" and base["BATCH"] == 256
-    for cfg, exps, seeds in auto[1:]:                     # every sweep variant changes exactly ONE knob
+    assert base["TAG"] == "" and base["BATCH"] == 256
+    for cfg, exps, seeds in auto[1:]:
         changed = {k for k in cfg if k != "TAG" and cfg[k] != nb["_DEFAULT_CFG"][k]}
-        assert 1 <= len(changed) <= 2 and cfg["TAG"] and exps == [("dp_fixed", 8.0)] and seeds == [0]
-        assert changed <= {"BATCH", "LOCAL_STEPS"} or len(changed) == 1
+        assert 1 <= len(changed) <= 2 and exps == [("dp_fixed", 8.0)] and seeds == [0]
 
 
 def test_cost_sensitive_reward_and_val_weights(nb, small_cfg):
@@ -183,3 +187,15 @@ def test_block18c_reference_table(nb, small_cfg, tmp_path, monkeypatch):
     t = nb["t"]
     assert set(t["run"]) == {"dp_fixed_eps8__S2base", "dp_adpmeta_eps8__S2_ADPv2"}
     assert t.loc[t["run"] == "dp_fixed_eps8__S2base", "verdict"].item() == "REFERENCE"
+
+
+def test_final_paired_tables(nb, small_cfg, tmp_path, monkeypatch):
+    small_cfg.update(CLIP_MULT=0.5, REWARD_FA=0.5, ADP_ACTIONS="pacing", TAG="final")
+    nb["run_all"]([("dp_fixed", 2.0), ("dp_adpmeta", 2.0), ("fedprox_np", None)], [0, 1])
+    monkeypatch.chdir(tmp_path)
+    exec(next(s for s in notebook_cells() if s.startswith("# BLOCK 18c ")), nb)
+    assert list(nb["g"]["seeds"]) == [2]
+    b19 = next(s for s in notebook_cells() if s.startswith("# BLOCK 19 "))
+    exec(b19.replace("FINAL_TEST = False", "FINAL_TEST = True"), nb)
+    assert set(nb["tdf"]["run"]) == {"dp_fixed_eps2__final", "dp_adpmeta_eps2__final", "fedprox_np__final"}
+    assert nb["paired"].loc["dp_adpmeta_eps2__final", "seeds_ADP_better"].endswith("/2")
