@@ -9,26 +9,25 @@ else:
     print("\nVALIDATION - per-class F1 at the selected round\n",
           vdf[["run", "seed"] + [c for c in vdf.columns if c.startswith("F1_")]].round(1).to_string(index=False))
 
-    # One-change-at-a-time comparison against the baseline dp_fixed eps 8 (same seed)
-    base = vdf[vdf["run"] == "dp_fixed_eps8"]
-    cand = vdf[vdf["run"].str.startswith("dp_fixed_eps8__")]
-    if len(base) and len(cand):
-        b = base.set_index("seed")
-        rows = []
-        for _, c in cand.iterrows():
-            if c["seed"] not in b.index:
-                continue
-            bb = b.loc[c["seed"]]
-            dF1, dFAR = c["MacroF1"] - bb["MacroF1"], c["FAR"] - bb["FAR"]
-            rows.append({"variant": c["run"].split("__", 1)[1], "seed": c["seed"], "MacroF1": c["MacroF1"],
-                         "dMacroF1": dF1, "Acc": c["Acc"], "dAcc": c["Acc"] - bb["Acc"], "FAR": c["FAR"],
-                         "dFAR": dFAR, "cap_met": c["cap_met"],
-                         "verdict": "IMPROVES" if (dF1 >= 2.0 and dFAR <= 1.0) else "no"})
-        cmp_df = pd.DataFrame(rows).sort_values("dMacroF1", ascending=False)
-        print(f"\nSWEEP vs baseline dp_fixed_eps8 (MacroF1={b['MacroF1'].iloc[0]:.2f}, FAR={b['FAR'].iloc[0]:.2f}) "
-              f"- IMPROVES = +2 macro-F1 or more and FAR not worse by more than 1 point\n",
+    # Before/after: every tagged variant vs its untagged baseline run (same method, eps and seed)
+    rows = []
+    for _, c in vdf[vdf["run"].str.contains("__")].iterrows():
+        base_name, variant = c["run"].split("__", 1)
+        bb = vdf[(vdf["run"] == base_name) & (vdf["seed"] == c["seed"])]
+        if bb.empty:
+            continue
+        bb = bb.iloc[0]
+        dF1, dFAR = c["MacroF1"] - bb["MacroF1"], c["FAR"] - bb["FAR"]
+        rows.append({"baseline": base_name, "variant": variant, "seed": c["seed"],
+                     "base_MacroF1": bb["MacroF1"], "MacroF1": c["MacroF1"], "dMacroF1": dF1,
+                     "base_Acc": bb["Acc"], "Acc": c["Acc"], "dAcc": c["Acc"] - bb["Acc"],
+                     "base_FAR": bb["FAR"], "FAR": c["FAR"], "dFAR": dFAR, "cap_met": c["cap_met"],
+                     "verdict": "IMPROVES" if (dF1 >= 2.0 and dFAR <= 1.0) else "no"})
+    if rows:
+        cmp_df = pd.DataFrame(rows).sort_values(["baseline", "dMacroF1"], ascending=[True, False])
+        print("\nBEFORE / AFTER (validation) - IMPROVES = +2 macro-F1 or more and FAR not worse by more than 1 point\n",
               cmp_df.round(2).to_string(index=False))
-        cmp_df.to_csv(os.path.join(CFG["RESULTS_DIR"], "sweep_vs_baseline.csv"), index=False)
+        cmp_df.to_csv(os.path.join(CFG["RESULTS_DIR"], "before_after.csv"), index=False)
 
     agg = vdf.groupby("run")[["MacroF1", "Acc", "FAR", "DR"]].agg(["mean", "std", "count"]).round(2)
     print("\nVALIDATION - mean / std / n over seeds\n", agg.to_string())

@@ -114,3 +114,10 @@ Block 18c prints `SWEEP vs baseline` with dMacroF1, dFAR and a verdict
 Defaults reproduce the previous behaviour exactly (tested). Winners are confirmed on seed 1, then combined.
 
 Validation effect: _pending._
+
+## Default stage = "main" (thesis model only)
+At the user's request the default Run All now trains ONLY FedProx + DDQN + local record-level DP + ADP-Meta
+(eps 8, seed 0): ADP-Meta v1 (before) and ADP-Meta v2 / C5 (after), about 30 min. Block 18c prints a
+BEFORE / AFTER table. The sweep and baselines stay available as optional stages ("auto", "sweep1",
+"C0_baseline"). The fixed-noise comparison is still part of the "final" stage, because Chapter 6 must show
+that ADP-Meta beats fixed noise.

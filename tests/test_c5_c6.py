@@ -114,11 +114,14 @@ def test_block18b_stages_apply_overrides_on_fresh_defaults(nb, monkeypatch):
     saved = dict(nb["CFG"])
     monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
     try:
-        exec(src.replace('STAGE = "auto"', 'STAGE = "C6_meta"'), nb)
-        exec(src, nb)
+        exec(src.replace('STAGE = "main"', 'STAGE = "C6_meta"'), nb)
+        exec(src.replace('STAGE = "main"', 'STAGE = "auto"'), nb)
+        exec(src, nb)                                     # default stage = main
     finally:
         nb["CFG"].clear(); nb["CFG"].update(saved)
-    c6, auto = calls[0], calls[1:]
+    c6, auto, main = calls[0], calls[1:-2], calls[-2:]
+    assert [m[1] for m in main] == [[("dp_adpmeta", 8.0)]] * 2
+    assert main[0][0]["ADP_ACTIONS"] == "mult" and main[1][0]["ADP_ACTIONS"] == "pacing" and main[1][0]["TAG"] == "C5"
     assert c6[0]["ADP_META_EPISODES"] == 10 and c6[0]["TAG"] == "C6" and c6[1] == [("dp_adpmeta", 8.0)]
     base = auto[0][0]
     assert base["TAG"] == "" and base["ADP_ACTIONS"] == "mult" and base["BATCH"] == 256

@@ -1,8 +1,8 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "auto": the C0 baselines + every Sweep-1 candidate fix, in one Run All (~4-5 h on a T4).
-# Each candidate changes ONE thing vs the baseline dp_fixed eps 8 (same seed 0) and gets its own TAG.
-# After it finishes, Block 18c prints the comparison table -> send that back.
-STAGE = "auto"
+# Default STAGE = "main": ONLY the thesis model (FedProx + DDQN + local record-level DP + ADP-Meta), eps 8, seed 0:
+#   1) ADP-Meta as before (v1)  2) ADP-Meta v2 (budget pacing + macro-F1 reward)  -> ~30 min on a T4.
+# Other stages ("auto", "sweep1", ...) are optional tuning runs. Block 18c prints the before/after table.
+STAGE = "main"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -21,7 +21,10 @@ SWEEP1 = [  # (TAG, one change, seeds, runs)
     ("MU0",        dict(MU=0.0),                            [0], DP8),   # C11 FedProx mu
     ("MU0.1",      dict(MU=0.1),                            [0], DP8),
 ]
+MAIN = [("",   {},                        [0], [("dp_adpmeta", 8.0)]),     # before
+        ("C5", dict(ADP_ACTIONS="pacing"),   [0], [("dp_adpmeta", 8.0)])]     # after: ADP-Meta v2
 STAGES = {
+    "main": MAIN,
     "auto": C0 + SWEEP1,
     "C0_baseline": C0,
     "sweep1": SWEEP1,
