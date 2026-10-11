@@ -114,10 +114,48 @@ def test_block18b_stages_apply_overrides_on_fresh_defaults(nb, monkeypatch):
     saved = dict(nb["CFG"])
     monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
     try:
-        exec(src.replace('STAGE = "C0_baseline"', 'STAGE = "C6_meta"'), nb)
-        exec(src.replace('STAGE = "C0_baseline"', 'STAGE = "C0_baseline"'), nb)
+        exec(src.replace('STAGE = "auto"', 'STAGE = "C6_meta"'), nb)
+        exec(src, nb)
     finally:
         nb["CFG"].clear(); nb["CFG"].update(saved)
-    c6, c0 = calls
+    c6, auto = calls[0], calls[1:]
     assert c6[0]["ADP_META_EPISODES"] == 10 and c6[0]["TAG"] == "C6" and c6[1] == [("dp_adpmeta", 8.0)]
-    assert c0[0]["ADP_META_EPISODES"] == 0 and c0[0]["TAG"] == "" and c0[0]["ADP_ACTIONS"] == "mult"
+    base = auto[0][0]
+    assert base["TAG"] == "" and base["ADP_ACTIONS"] == "mult" and base["BATCH"] == 256
+    for cfg, exps, seeds in auto[1:]:                     # every sweep variant changes exactly ONE knob
+        changed = {k for k in cfg if k != "TAG" and cfg[k] != nb["_DEFAULT_CFG"][k]}
+        assert 1 <= len(changed) <= 2 and cfg["TAG"] and exps == [("dp_fixed", 8.0)] and seeds == [0]
+        assert changed <= {"BATCH", "LOCAL_STEPS"} or len(changed) == 1
+
+
+def test_cost_sensitive_reward_and_val_weights(nb, small_cfg):
+    import torch
+    n = nb["NORMAL_IDX"]; other = (n + 1) % 10
+    ag = nb["SmallDDQN"](nb["input_dim"], nb["action_dim"], nb["device"], np.ones(10, np.float32), gamma=0.0)
+    labels = torch.tensor([n, n, other, other])
+    actions = torch.tensor([n, other, other, n])          # correct, false alarm, correct, miss
+    assert ag.reward(actions, labels).tolist() == [1.0, -1.0, 1.0, -1.0]   # defaults = old reward
+    small_cfg.update(REWARD_FA=0.5, REWARD_MISS=0.25)
+    assert ag.reward(actions, labels).tolist() == [1.0, -1.5, 1.0, -1.25]
+    small_cfg.update(WEIGHTS_FROM="val", REWARD_POWER=1.0)
+    w = nb["reward_weights"]()
+    counts = np.bincount(nb["y_val"], minlength=10)
+    assert w.mean() == pytest.approx(1.0) and int(np.argmax(w)) == int(np.argmin(counts))
+    small_cfg.update(WEIGHTS_FROM="train", REWARD_POWER=0.5)
+    assert np.allclose(nb["reward_weights"](), nb["class_weights_dp"], atol=1e-6)   # default = old weights
+
+def test_sweep_variant_runs_end_to_end(nb, small_cfg):
+    small_cfg.update(REWARD_FA=0.5, CLIP_MULT=0.5, TAG="FA0.5")
+    nb["run_all"]([("dp_fixed", 2.0)], [0])
+    r = json.load(open(nb["result_path"]("dp_fixed_eps2__FA0.5", 0)))
+    assert r["cfg"]["REWARD_FA"] == 0.5 and r["final_epsilon"] <= 2.0 + 1e-9
+
+def test_block18c_comparison_table(nb, small_cfg, tmp_path, monkeypatch):
+    nb["run_all"]([("dp_fixed", 8.0)], [0])
+    small_cfg.update(LR=3e-3, TAG="LR3e-3")
+    nb["run_all"]([("dp_fixed", 8.0)], [0])
+    monkeypatch.chdir(tmp_path)
+    exec(next(s for s in notebook_cells() if s.startswith("# BLOCK 18c ")), nb)
+    df = nb["cmp_df"]
+    assert list(df["variant"]) == ["LR3e-3"] and df["verdict"].iloc[0] in ("IMPROVES", "no")
+    assert (tmp_path / "results_jsons.zip").exists()

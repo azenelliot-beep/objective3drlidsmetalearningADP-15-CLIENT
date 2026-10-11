@@ -205,7 +205,7 @@ def meta_train_controller(eps_budget, C):
         es = 10_000 + e
         set_seed(es)
         parts = dirichlet_split(yA, NUM_CLIENTS, ALPHA, np.random.default_rng(es), CFG["PROXY_MIN_PER_CLIENT"])
-        mk = lambda: SmallDDQN(input_dim, action_dim, device, class_weights_dp, gamma=0.0, lr=CFG["LR"])
+        mk = lambda: SmallDDQN(input_dim, action_dim, device, reward_weights(), gamma=0.0, lr=CFG["LR"])
         g = mk()
         proxies = [DPClient(mk(), XA[ci], yA[ci], device, model_name=f"Proxy{k+1}", batch_size=CFG["BATCH"],
                             clip_norm=C, delta=CFG["DELTA"]) for k, ci in enumerate(parts)]

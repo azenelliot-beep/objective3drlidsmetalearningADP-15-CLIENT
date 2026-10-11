@@ -101,3 +101,16 @@ Validation effect: _pending._
 ## Infrastructure
 - `CFG["TAG"]` is appended to run names. Re-running an existing run name with a different config raises
   an error instead of silently skipping, so ablation results cannot be mixed up.
+
+## Sweep 1 - candidate fixes for the fixed-noise DP model, one Run All (code done, awaiting Kaggle run)
+Block 18b now defaults to `STAGE = "auto"`: the C0 baselines, then 12 variants of `dp_fixed` at eps 8 (seed 0),
+each changing ONE knob (batch and steps count as one knob, "batch size at a fixed budget").
+Block 18c prints `SWEEP vs baseline` with dMacroF1, dFAR and a verdict
+(IMPROVES = +2 macro-F1 or more and FAR not worse by more than 1 point).
+- C1 `WEIGHTS_FROM="val"`: reward weights from validation counts
+- C3 `BATCH`/`LOCAL_STEPS` (1024x100, 1024x200, 2048x100), `CLIP_MULT` (0.5, 2), `LR` 3e-3
+- C4 `REWARD_FA` 0.5 (false alarm), `REWARD_MISS` 0.5 (missed attack), `REWARD_POWER` 1.0
+- C11 `MU` 0 and 0.1
+Defaults reproduce the previous behaviour exactly (tested). Winners are confirmed on seed 1, then combined.
+
+Validation effect: _pending._

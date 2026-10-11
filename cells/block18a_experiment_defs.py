@@ -28,6 +28,12 @@ CFG = dict(
     ADP_META_EPISODES=0,                                         # C6: >0 -> meta-train on validation, then frozen
     PROXY_MIN_PER_CLIENT=50,
     TAG="",                                                      # appended to run names: one tag per ablation
+    # Sweep-1 knobs (defaults = previous behaviour)
+    WEIGHTS_FROM="train",      # C1: reward class weights from pooled "train" counts or server-held "val" counts
+    REWARD_POWER=0.5,          # C4: weights = balanced_weight ** power (0.5 = square root, as before)
+    REWARD_FA=0.0,             # C4: extra penalty when a NORMAL flow is flagged as an attack (false alarm)
+    REWARD_MISS=0.0,           # C4: extra penalty when an ATTACK is called normal (missed attack)
+    CLIP_MULT=1.0,             # C3: C = CLIP_MULT x median per-sample grad norm on validation
     CH5_ROUNDS=50, CH5_FRAC=0.8, CH5_LOCAL_EPOCHS=2, CH5_OVERSAMPLE_CAP=10,
     RESULTS_DIR="results",
 )
@@ -47,6 +53,8 @@ class SmallQNetwork(nn.Module):
     def forward(self, x, mode="q_value"):
         return self.q_head(self.feature_extractor(x))
 
+NORMAL_IDX = class_names.index("normal")
+
 class SmallDDQN(DDQN):                       # identical DDQN logic (reward, TD update, target net), smaller network
     def __init__(self, *args, lr=1e-3, **kwargs):
         super().__init__(*args, lr=lr, **kwargs)
@@ -54,6 +62,25 @@ class SmallDDQN(DDQN):                       # identical DDQN logic (reward, TD 
         self.target_net = SmallQNetwork(input_dim, action_dim).to(self.device)
         self.target_net.load_state_dict(self.online_net.state_dict()); self.target_net.eval()
         self.optimizer = optim.Adam(self.online_net.parameters(), lr=lr)
+
+    def reward(self, actions, labels):
+        """+w[y] if correct, -w[y] if wrong (as before), plus optional cost-sensitive IDS penalties (C4).
+        Still a pure reward: the detector is trained only with the TD loss on this reward."""
+        w = self.reward_w[labels]
+        r = torch.where(actions == labels, w, -w)
+        wrong = actions != labels
+        if CFG["REWARD_FA"]:
+            r = r - CFG["REWARD_FA"] * (wrong & (labels == NORMAL_IDX)).float()
+        if CFG["REWARD_MISS"]:
+            r = r - CFG["REWARD_MISS"] * (wrong & (labels != NORMAL_IDX) & (actions == NORMAL_IDX)).float()
+        return r
+
+def reward_weights():
+    """Class weights for the DP-pipeline reward. 'val' uses server-held validation counts, so no statistic of the
+    private training data is used outside DP (C1)."""
+    yy = {"train": y_dp, "val": y_val}[CFG["WEIGHTS_FROM"]]
+    cw = compute_class_weight('balanced', classes=np.arange(len(class_names)), y=yy) ** CFG["REWARD_POWER"]
+    return (cw / cw.mean()).astype(np.float32)
 
 ARCH = {"small": SmallDDQN, "large": DDQN}
 
@@ -105,8 +132,8 @@ def per_sample_grad_norms(agent, X, y, n=1024):          # used only to pick C (
 def dp_clip_norm():
     """C = median per-sample grad norm at init on VALIDATION data. Fixed seed -> same C for every method and seed."""
     set_seed(SPLIT_SEED)
-    ag = SmallDDQN(input_dim, action_dim, device, class_weights_dp, gamma=0.0, lr=CFG["LR"])
-    return float(np.median(per_sample_grad_norms(ag, X_val, y_val)))
+    ag = SmallDDQN(input_dim, action_dim, device, reward_weights(), gamma=0.0, lr=CFG["LR"])
+    return CFG["CLIP_MULT"] * float(np.median(per_sample_grad_norms(ag, X_val, y_val)))
 
 def run_name(method, eps_budget=None):
     base = method if eps_budget is None else f"{method}_eps{eps_budget:g}"
@@ -163,7 +190,8 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
     _a = np.concatenate(parts)
     assert len(_a) == len(y_dp) and len(np.unique(_a)) == len(y_dp), "A record is in more than one client"
 
-    mk = lambda: SmallDDQN(input_dim, action_dim, device, class_weights_dp, gamma=0.0, lr=CFG["LR"])
+    w = reward_weights()
+    mk = lambda: SmallDDQN(input_dim, action_dim, device, w, gamma=0.0, lr=CFG["LR"])
     g = mk()
     clients = [DPClient(mk(), X_dp[ci], y_dp[ci], device, model_name=f"Client{k+1}", batch_size=CFG["BATCH"],
                         clip_norm=(C if use_clip else None), delta=delta) for k, ci in enumerate(parts)]
