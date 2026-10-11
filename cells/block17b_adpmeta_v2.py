@@ -126,7 +126,7 @@ def _drop_unrewarded(ctrl, rewards):
 
 
 def paced_episode(name, g, clients, pacers, ctrl, eval_ds, *, rounds, steps, mu, rng, mode,
-                  eps_budget=None, keep_states=False):
+                  eps_budget=None, keep_states=False, fast=None):
     """One federated run whose noise each round is set by ADP-Meta v2 pacing.
     mode: "sample_episodic" (practice), "sample_online" (C5 real run), "greedy" (frozen, C6 real run).
     eps_budget: if given (real run), every client's Opacus epsilon is checked BEFORE spending and after."""
@@ -148,11 +148,10 @@ def paced_episode(name, g, clients, pacers, ctrl, eval_ds, *, rounds, steps, mu,
             print(f"[{name}] Round {r}: privacy budget would be exceeded - stopping before spending.")
             _drop_unrewarded(ctrl, rewards); break
         gp = g.get_fl_parameters()
-        params, sizes, norms = [], [], []
+        params, sizes, mets = fit_clients(clients, list(sig), gp, sig, steps, mu, fast)
         for i, s in sig.items():
-            p, n, met = clients[i].fit(gp, {"noise_multiplier": s, "local_steps": steps, "mu": mu})
             pacers[i].commit(s)
-            params.append(p); sizes.append(n); norms.append(met["delta_l2"])
+        norms = [m["delta_l2"] for m in mets]
         g.set_fl_parameters(weighted_average(params, sizes))
         h = eval_metrics(g, eval_ds)
         reward = h["Macro_F1"] - f1_prev
@@ -212,7 +211,7 @@ def meta_train_controller(eps_budget, C):
         pacers = [RDPPacer(q_real[k], eps_budget, CFG["DELTA"], R, STEPS) for k in range(len(proxies))]
         hist, _, rewards = paced_episode(f"meta eps{eps_budget:g} ep{e+1}", g, proxies, pacers, ctrl, val_B,
                                          rounds=R, steps=STEPS, mu=mu, rng=np.random.default_rng(es),
-                                         mode="sample_episodic")
+                                         mode="sample_episodic", fast=make_fast(proxies))
         ret = ctrl.finish_episode(rewards) if rewards else 0.0
         best = max((h["Macro_F1"] for h in hist), default=float("nan"))
         log.append({"episode": e + 1, "return": ret, "best_val_B_F1": best, "actions": [h["action_k"] for h in hist]})

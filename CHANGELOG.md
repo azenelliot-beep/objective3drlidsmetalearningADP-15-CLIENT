@@ -121,3 +121,17 @@ At the user's request the default Run All now trains ONLY FedProx + DDQN + local
 BEFORE / AFTER table. The sweep and baselines stay available as optional stages ("auto", "sweep1",
 "C0_baseline"). The fixed-noise comparison is still part of the "final" stage, because Chapter 6 must show
 that ADP-Meta beats fixed noise.
+
+## Speed - all clients trained in parallel on the GPU (Block 16b, `CFG["FAST"] = True`)
+Why: the 15 clients were trained one after another on a 4.5k-parameter network, so the T4 sat mostly idle.
+A run took about 12-15 min, and the full plan about 16-17 GPU hours.
+What: `FastFederation` stacks the 15 clients' parameters and runs each local DP-SGD step for all of them in
+one batched computation. Per client it does exactly the same thing: own Poisson rate, per-sample
+clipping, own noise sigma_k*C, FedProx, Adam. Adam is element-wise, so one Adam over the stacked tensors
+equals 15 independent Adams. Accounting stays per client, step by step. Falls back to the loop when not all
+clients train in a round.
+Tests: parameters identical to the per-client loop to 1e-5 (with and without clipping and FedProx, over
+2 rounds); accountant histories identical; noise std = sigma_k*C/(q_k n_k); noise without clipping refused.
+Speed: no gain on CPU (compute-bound). The GPU gain is NOT measured yet. Each run's JSON records `minutes`.
+Note: runs on the fast path draw random numbers in a different order than the loop, so they are not
+bit-identical to earlier runs. Use one path consistently for every comparison (all new stages use it).

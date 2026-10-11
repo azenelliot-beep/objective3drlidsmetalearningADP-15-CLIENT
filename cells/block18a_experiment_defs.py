@@ -36,6 +36,7 @@ CFG = dict(
     CLIP_MULT=1.0,             # C3: C = CLIP_MULT x median per-sample grad norm on validation
     CH5_ROUNDS=50, CH5_FRAC=0.8, CH5_LOCAL_EPOCHS=2, CH5_OVERSAMPLE_CAP=10,
     RESULTS_DIR="results",
+    FAST=True,                 # Block 16b: train all clients in parallel on the GPU (same algorithm, much faster)
 )
 _DEFAULT_CFG = dict(CFG)               # Block 18b resets CFG to these defaults before applying a stage
 
@@ -200,8 +201,9 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
                                      steps=R * STEPS, accountant="rdp") for c in clients]
     else:
         base = [0.0] * len(clients)
+    fast = make_fast(clients)
     if adaptive and CFG["ADP_ACTIONS"] == "pacing":                # ADP-Meta v2 (C5/C6, Block 17b)
-        return _run_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu)
+        return _run_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast)
     ctrl = ADPMetaController(list(CFG["LEVEL_MULTS"]), device=device) if adaptive else None
     print(f"[{name} | seed {seed}] clip={C if use_clip else 'none'} | mu={mu} | "
           f"sigma median={np.median(base):.3f} | client sizes={[len(p) for p in parts]}")
@@ -225,10 +227,7 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
                     break
 
         gp = g.get_fl_parameters()
-        params, sizes = [], []
-        for i in active:
-            p, n, _ = clients[i].fit(gp, {"noise_multiplier": base[i] * mult, "local_steps": STEPS, "mu": mu})
-            params.append(p); sizes.append(n)
+        params, sizes, _ = fit_clients(clients, active, gp, {int(i): base[i] * mult for i in active}, STEPS, mu, fast)
         g.set_fl_parameters(weighted_average(params, sizes))
 
         h = eval_metrics(g, val_dataset)
@@ -257,7 +256,10 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
         "base_sigma_per_client": base, "rounds_run": len(history), "minutes": (time.time() - t0) / 60,
         "controller": ctrl_hist})
 
-def _run_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu):
+def make_fast(clients):
+    return FastFederation(clients) if CFG["FAST"] and CFG["CLIENT_FRAC"] >= 1.0 else None
+
+def _run_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast=None):
     R, STEPS, delta = CFG["ROUNDS"], CFG["LOCAL_STEPS"], CFG["DELTA"]
     meta = CFG["ADP_META_EPISODES"] > 0
     if meta:
@@ -271,7 +273,7 @@ def _run_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu):
           f"sigma0 median={np.median([p.sigma0 for p in pacers]):.3f} | client sizes={[len(p) for p in parts]}")
     t0 = time.time()
     history, states, _ = paced_episode(name, g, clients, pacers, ctrl, val_dataset, rounds=R, steps=STEPS, mu=mu,
-                                       rng=rng, mode=mode, eps_budget=eps_budget, keep_states=True)
+                                       rng=rng, mode=mode, eps_budget=eps_budget, keep_states=True, fast=fast)
     return _save(name, seed, history, states, "small", {
         "method": method, "private": True, "eps_budget": eps_budget,
         "final_epsilon": history[-1]["epsilon"] if history else 0.0,
