@@ -22,10 +22,16 @@ SPLIT_SEED = SEED                      # 42 - fixed data split / scaler / featur
 CFG = dict(
     ROUNDS=20, LOCAL_STEPS=400, BATCH=256, LR=1e-3, CLIENT_FRAC=1.0, MU=0.01, DELTA=1e-5,
     FAR_CAP=0.10,
-    LEVEL_MULTS=(0.8, 0.9, 1.0, 1.2, 1.5), LAMBDA=1.0,         # ADP-Meta (unchanged in C0)
+    LEVEL_MULTS=(0.8, 0.9, 1.0, 1.2, 1.5), LAMBDA=1.0,         # ADP-Meta v1 (legacy, ADP_ACTIONS="mult")
+    ADP_ACTIONS="mult",                                          # "mult" = v1 (C0) | "pacing" = v2 (C5, Block 17b)
+    PACE_ACTIONS=(0.5, 0.75, 1.0, 1.5, 2.0), ADP_LR=1e-2, ADP_ENTROPY=0.01,
+    ADP_META_EPISODES=0,                                         # C6: >0 -> meta-train on validation, then frozen
+    PROXY_MIN_PER_CLIENT=50,
+    TAG="",                                                      # appended to run names: one tag per ablation
     CH5_ROUNDS=50, CH5_FRAC=0.8, CH5_LOCAL_EPOCHS=2, CH5_OVERSAMPLE_CAP=10,
     RESULTS_DIR="results",
 )
+_DEFAULT_CFG = dict(CFG)               # Block 18b resets CFG to these defaults before applying a stage
 
 # ------------------------------ smaller DDQN network for private training (D10) ------------------------------
 class SmallQNetwork(nn.Module):
@@ -103,7 +109,11 @@ def dp_clip_norm():
     return float(np.median(per_sample_grad_norms(ag, X_val, y_val)))
 
 def run_name(method, eps_budget=None):
-    return method if eps_budget is None else f"{method}_eps{eps_budget:g}"
+    base = method if eps_budget is None else f"{method}_eps{eps_budget:g}"
+    return f"{base}__{CFG['TAG']}" if CFG.get("TAG") else base
+
+def cfg_json():
+    return {k: (list(v) if isinstance(v, tuple) else v) for k, v in CFG.items()}
 
 def result_path(name, seed, suffix=".json"):
     return os.path.join(CFG["RESULTS_DIR"], f"{name}__seed{seed}{suffix}")
@@ -116,7 +126,7 @@ def _save(name, seed, history, states, arch, extra):
            "selection_rule": f"max val Macro_F1 s.t. val FAR <= {CFG['FAR_CAP']}; else min val FAR",
            "best_round": history[bi]["round"], "cap_met": cap_met, "val_at_best": history[bi],
            "history": [{k: v for k, v in h.items() if k != "cm"} for h in history],
-           "cfg": {k: (list(v) if isinstance(v, tuple) else v) for k, v in CFG.items()},
+           "cfg": cfg_json(),
            "features": list(selected_features), **extra}
     with open(result_path(name, seed), "w") as f:
         json.dump(out, f, indent=2)
@@ -162,6 +172,8 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
                                      steps=R * STEPS, accountant="rdp") for c in clients]
     else:
         base = [0.0] * len(clients)
+    if adaptive and CFG["ADP_ACTIONS"] == "pacing":                # ADP-Meta v2 (C5/C6, Block 17b)
+        return _run_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu)
     ctrl = ADPMetaController(list(CFG["LEVEL_MULTS"]), device=device) if adaptive else None
     print(f"[{name} | seed {seed}] clip={C if use_clip else 'none'} | mu={mu} | "
           f"sigma median={np.median(base):.3f} | client sizes={[len(p) for p in parts]}")
@@ -217,6 +229,29 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
         "base_sigma_per_client": base, "rounds_run": len(history), "minutes": (time.time() - t0) / 60,
         "controller": ctrl_hist})
 
+def _run_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu):
+    R, STEPS, delta = CFG["ROUNDS"], CFG["LOCAL_STEPS"], CFG["DELTA"]
+    meta = CFG["ADP_META_EPISODES"] > 0
+    if meta:
+        ctrl, mode = meta_train_controller(eps_budget, C), "greedy"           # frozen, trained on validation only
+        set_seed(seed); rng = np.random.default_rng(seed)                    # meta-training must not shift the run's RNG
+    else:
+        ctrl, mode = ADPMetaV2(CFG["PACE_ACTIONS"], lr=CFG["ADP_LR"], entropy_coef=CFG["ADP_ENTROPY"],
+                               device=device), "sample_online"
+    pacers = [RDPPacer(c.q, eps_budget, delta, R, STEPS) for c in clients]
+    print(f"[{name} | seed {seed}] ADP-Meta v2 ({mode}) | clip={C} | mu={mu} | "
+          f"sigma0 median={np.median([p.sigma0 for p in pacers]):.3f} | client sizes={[len(p) for p in parts]}")
+    t0 = time.time()
+    history, states, _ = paced_episode(name, g, clients, pacers, ctrl, val_dataset, rounds=R, steps=STEPS, mu=mu,
+                                       rng=rng, mode=mode, eps_budget=eps_budget, keep_states=True)
+    return _save(name, seed, history, states, "small", {
+        "method": method, "private": True, "eps_budget": eps_budget,
+        "final_epsilon": history[-1]["epsilon"] if history else 0.0,
+        "delta": delta, "clip_norm": C, "mu": mu, "adp_version": "v2-pacing", "adp_mode": mode,
+        "controller_file": controller_path(eps_budget) if meta else None,
+        "sigma0_per_client": [p.sigma0 for p in pacers], "rounds_run": len(history),
+        "minutes": (time.time() - t0) / 60})
+
 # ------------------------------ Chapter 5 non-private reference (fedavg_ch5, fedprox_ch5) ------------------------------
 def ch5_clients(seed):
     """Resampling + Dirichlet split + loaders exactly as Blocks 9/10, but seeded with run_seed."""
@@ -268,6 +303,12 @@ def run_all(experiments, seeds):
         for method, eps in experiments:
             name = run_name(method, eps)
             if os.path.exists(result_path(name, seed)):
+                with open(result_path(name, seed)) as f:
+                    old = json.load(f)["cfg"]
+                diff = {k for k in set(old) | set(cfg_json()) if k != "RESULTS_DIR" and old.get(k) != cfg_json().get(k)}
+                if diff:
+                    raise ValueError(f"{name} seed {seed} exists with a DIFFERENT config ({sorted(diff)}). "
+                                     f"Set CFG['TAG'] to a new name for this ablation.")
                 print(f">>> SKIP {name} seed {seed} (done)"); continue
             print(f"\n{'='*70}\n>>> START {name} | seed {seed} | elapsed {(time.time()-T0)/60:.0f} min\n{'='*70}")
             try:

@@ -15,6 +15,9 @@ is confirmed on a second seed. Failures are recorded here too. The test set is u
   use the same seeds, so comparisons are paired. Report mean ± std (sample std).
 - **Reported epsilon** = total spent over ALL rounds run (under local DP the server sees every update), not
   epsilon at the selected round.
+- **C6 decision:** meta-training episodes run on validation data, disclosed in the thesis. Validation is
+  split once into stratified halves (seed 42): proxy detectors train on half A, controller reward on half B.
+  The reported detector never trains on validation data, and the test set is never used.
 - **Dropped:** public-data warm-up of the detector (it would train on validation data, which the threat model
   now rules out).
 
@@ -48,3 +51,53 @@ What changed:
 Tests: `tests/test_c0.py` (16 tests, synthetic data, executes the built notebook).
 
 Validation effect: _pending Kaggle run (stage `C0_baseline`)._
+
+## C5 - ADP-Meta v2: budget pacing + macro-F1 reward (code done, runs AFTER fixed-noise tuning)
+Flag: `CFG["ADP_ACTIONS"] = "pacing"` (default `"mult"` = unchanged v1). File: `cells/block17b_adpmeta_v2.py`.
+
+Why: v1 used actions 0.8/0.9 (less noise than calibrated), which front-loaded spending. Round 1 alone used
+36% of eps = 8, and the budget ran out at round 16. Its reward was accuracy, which hides rare-class failure.
+results.md: v1 tied fixed noise at eps 8 and collapsed at eps 1 (macro-F1 8.1 vs 13.1, FAR 95%).
+
+What:
+- Pacing in RDP at a fixed order alpha* per client, which adds up over rounds (pacing on eps does not:
+  eps grows roughly with the square root of the number of steps). Action k spends min(1, k / rounds_left)
+  of the remaining budget. k = 1 every round equals fixed noise exactly. The last round spends what is
+  left. sigma is found by bisection, rounded towards more noise. The Opacus pre-round check and post-round
+  assert still apply.
+- Policy 32-16 (Chapter 6). State: t/T, budget left, val macro-F1, change in macro-F1, log(1 + median
+  update norm). Reward: validation macro-F1 gain.
+- Without C6 the controller learns online (one REINFORCE step per round), as v1 did.
+
+Tests: uniform pacing = fixed sigma; random action sequences never exceed eps and spend >= 95% of it;
+the 32-16 policy learns a toy bandit; online run respects the budget.
+
+Validation effect: _pending._
+
+## C6 - Meta-training ADP-Meta v2 on validation (code done, runs after C5)
+Flag: `CFG["ADP_META_EPISODES"] = N` (> 0), requires `ADP_ACTIONS = "pacing"`.
+
+What:
+- N practice episodes, each a full federated run with the real round structure (rounds, local steps,
+  batch, C, mu, reward weights, DP-SGD client).
+- The 15 proxy clients come from a Dirichlet split of validation half A (new split each episode).
+- Proxy client k follows real client k's noise schedule, so per-step noise sigma*C/B matches the real run.
+- Reward measured on half B. REINFORCE with returns and a per-round baseline.
+- The controller is saved per eps budget (`results/controller_eps<e>__<TAG>.pt`, plus `_meta_log.json`),
+  frozen, used greedily in the real run, and shared across seeds 0/1/2.
+
+Caveats:
+- Half A has about 9.4k rows, so each proxy record is sampled about 10-20x more often than a real one.
+  Noise per step matches, but proxy runs can overfit sooner, and transfer of the learned policy is an
+  empirical question. That is why C6 must beat both C5 and tuned fixed noise on validation.
+- Cost: one practice episode is about one real run (~15 min on a T4), so 10 episodes x 3 eps budgets is
+  about 7.5 h.
+
+Tests: proxies only ever hold validation half A, real clients never hold validation rows, halves are
+disjoint, controller is cached and reused across seeds, budget respected.
+
+Validation effect: _pending._
+
+## Infrastructure
+- `CFG["TAG"]` is appended to run names. Re-running an existing run name with a different config raises
+  an error instead of silently skipping, so ablation results cannot be mixed up.

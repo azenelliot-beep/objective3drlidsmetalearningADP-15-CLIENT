@@ -9,9 +9,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / "original" / "before-viva_1.ipynb"
 OUT = ROOT / "notebooks" / "chapter6_v4.ipynb"
 
+KEEP = "__keep_original__"
 # original header prefix -> list of replacement cell files (in order)
 REPLACE = {
     "# BLOCK 16 ": ["block16_dp_client.py"],
+    "# BLOCK 17 ": [KEEP, "block17b_adpmeta_v2.py"],          # keep Block 17 (v1 controller), add 17b after it
 }
 # The original FINAL Block 18 starts with a '# ====' banner, matched by this line instead
 REPLACE_BLOCK18_MARKER = "# BLOCK 18 (FINAL)"
@@ -35,13 +37,14 @@ def main():
                 new, hits[prefix] = files, hits[prefix] + 1
         if c["cell_type"] == "code" and REPLACE_BLOCK18_MARKER in src.splitlines()[1 if src.startswith("# ===") else 0]:
             new, hits[REPLACE_BLOCK18_MARKER] = BLOCK18_FILES, hits[REPLACE_BLOCK18_MARKER] + 1
-        if new is None:
-            c = copy.deepcopy(c)
-            if c["cell_type"] == "code":
-                c["outputs"], c["execution_count"] = [], None      # strip old outputs: they belong to the old code
-            cells.append(c)
-        else:
-            cells.extend(code_cell((ROOT / "cells" / f).read_text()) for f in new)
+        for f in (new or [KEEP]):
+            if f == KEEP:
+                k = copy.deepcopy(c)
+                if k["cell_type"] == "code":
+                    k["outputs"], k["execution_count"] = [], None  # strip old outputs: they belong to the old code
+                cells.append(k)
+            else:
+                cells.append(code_cell((ROOT / "cells" / f).read_text()))
     bad = {k: v for k, v in hits.items() if v != 1}
     if bad:
         sys.exit(f"Expected exactly one match per replaced block, got {bad}")
