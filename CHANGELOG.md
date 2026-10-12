@@ -226,3 +226,9 @@ validation with the same rule.
 ADP-Meta v2 46.65 ± 11.29 vs fixed 45.86 ± 6.24 macro-F1 (paired +0.79 ± 5.06, ADP better 2/3 seeds): equivalent.
 No accuracy gain from eps 8 to eps 16 for fixed noise. My earlier estimate of 83-87% accuracy at eps 16 was wrong
 (observed ~81%).
+
+## Block 20 - post-processing analysis of saved models (follow-up, no retraining, no extra privacy cost)
+(a) Binary IDS view (attack vs normal) next to the 10-class results; (b) per-class ROC-AUC from Q-values;
+(c) per-class Q-value offsets learned on VALIDATION only (max val macro-F1 with FAR <= cap), applied to test.
+The DDQN weights are unchanged; post-processing of a DP model keeps the same (eps, delta). Test numbers from
+Block 20 are a disclosed follow-up use of the test set.

@@ -18,7 +18,8 @@ REPLACE = {
 # The original FINAL Block 18 starts with a '# ====' banner, matched by this line instead
 REPLACE_BLOCK18_MARKER = "# BLOCK 18 (FINAL)"
 BLOCK18_FILES = ["block18a_experiment_defs.py", "block18b_run_experiments.py",
-                 "block18c_val_summary.py", "block19_final_test.py"]
+                 "block18c_val_summary.py", "block19_final_test.py",
+                 "block20_postprocessing.py"]
 
 
 def code_cell(src):
