@@ -232,3 +232,5 @@ No accuracy gain from eps 8 to eps 16 for fixed noise. My earlier estimate of 83
 (c) per-class Q-value offsets learned on VALIDATION only (max val macro-F1 with FAR <= cap), applied to test.
 The DDQN weights are unchanged; post-processing of a DP model keeps the same (eps, delta). Test numbers from
 Block 20 are a disclosed follow-up use of the test set.
+Block 20 on eps 16 (follow-up, results/followup_eps16_block20.md): calibration +9.3 (ADP) / +8.8 (fixed) test
+macro-F1, matching validation; binary accuracy ~89.6%; ADP vs fixed still equivalent (+1.4 ± 5.0, 1/3 seeds).
