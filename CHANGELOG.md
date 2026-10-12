@@ -203,3 +203,9 @@ REINFORCE baseline is initialised from the first episode (a zero start caused pr
 Pre-registered success rule: v3 >= fixed + 2 val macro-F1 with FAR <= 10% at an eps (stage "v3_val", seed 0,
 eps 8 and 1); then "final_v3" (3 seeds, eps 8/3/1): mean better AND better on >= 2 of 3 seeds. Otherwise
 report no significant difference.
+
+## Final stage results (ADP-Meta v2, 3 seeds, validation) - see results/final_v2_val_summary.md
+Pre-registered rule NOT met: ADP-Meta v2 minus fixed noise = -6.4 ± 8.7 (eps 8), -6.6 ± 5.9 (eps 3),
+-0.7 ± 1.2 (eps 1) val macro-F1. ADP has slightly lower FAR everywhere. Reported as found.
+Test evaluation (Block 19, TEST_TAG = "final") is to be run once. ADP-Meta v3 code stays frozen as committed
+(cd74dad) and will not be changed after the test results are seen.
