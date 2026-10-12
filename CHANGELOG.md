@@ -221,3 +221,8 @@ These are the Chapter 6 numbers. ADP-Meta v3 stays frozen at cd74dad; if it is r
 - `v3_val` / `final_v3`: ADP-Meta v3 (frozen at cd74dad, before the test results were seen).
 Any test numbers from these stages are a second, disclosed use of the test set. Model selection stays on
 validation with the same rule.
+
+## Follow-up eps 16 (validation) - results/followup_eps16_val_summary.md
+ADP-Meta v2 46.65 ± 11.29 vs fixed 45.86 ± 6.24 macro-F1 (paired +0.79 ± 5.06, ADP better 2/3 seeds): equivalent.
+No accuracy gain from eps 8 to eps 16 for fixed noise. My earlier estimate of 83-87% accuracy at eps 16 was wrong
+(observed ~81%).
