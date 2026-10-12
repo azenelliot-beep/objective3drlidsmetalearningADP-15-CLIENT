@@ -209,3 +209,8 @@ Pre-registered rule NOT met: ADP-Meta v2 minus fixed noise = -6.4 ± 8.7 (eps 8)
 -0.7 ± 1.2 (eps 1) val macro-F1. ADP has slightly lower FAR everywhere. Reported as found.
 Test evaluation (Block 19, TEST_TAG = "final") is to be run once. ADP-Meta v3 code stays frozen as committed
 (cd74dad) and will not be changed after the test results are seen.
+
+## FINAL TEST (Block 19, run once, TEST_TAG = "final") - results/final_v2_TEST_results.md
+Test agrees with validation (e.g. fixed eps 8: test 46.27 vs val 46.00 macro-F1; ADP eps 8: 39.53 vs 39.65).
+ADP-Meta v2 minus fixed noise on test: -6.74 ± 9.18 (eps 8), -7.05 ± 6.15 (eps 3), -0.63 ± 1.16 (eps 1).
+These are the Chapter 6 numbers. ADP-Meta v3 stays frozen at cd74dad; if it is run later, report it separately.
