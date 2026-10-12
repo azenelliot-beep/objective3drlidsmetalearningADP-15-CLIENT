@@ -4,6 +4,8 @@
 # Success rule written BEFORE running (CHANGELOG): ADP-Meta v3 must beat fixed noise by >= 2 val macro-F1 with
 # FAR <= 10% at an eps; then the 3-seed stage "final_v3" decides (mean better AND better on >= 2 of 3 seeds).
 # The test set (Block 19) is used only once, after "final_v3".
+# Other choice: STAGE = "eps16" -> one more point on the privacy-utility curve (weaker privacy, eps = 16):
+#   ADP-Meta v2 (frozen final settings, meta-trained for eps 16) vs fixed noise, seeds 0/1/2 (~1.5-2 h).
 STAGE = "v3_val"
 
 DP8 = [("dp_fixed", 8.0)]
@@ -43,6 +45,7 @@ STAGES = {
         ("fedavg_np", None), ("fedprox_np", None),
         ("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("dp_fixed", 3.0), ("dp_adpmeta", 3.0),
         ("dp_fixed", 1.0), ("dp_adpmeta", 1.0)])],
+    "eps16": [("final", FINAL_CFG, [0, 1, 2], [("dp_fixed", 16.0), ("dp_adpmeta", 16.0)])],
     "next": NEXT,
     "main": MAIN,
     "auto": C0 + SWEEP1,

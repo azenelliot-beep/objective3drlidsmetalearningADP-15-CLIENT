@@ -214,3 +214,10 @@ Test evaluation (Block 19, TEST_TAG = "final") is to be run once. ADP-Meta v3 co
 Test agrees with validation (e.g. fixed eps 8: test 46.27 vs val 46.00 macro-F1; ADP eps 8: 39.53 vs 39.65).
 ADP-Meta v2 minus fixed noise on test: -6.74 ± 9.18 (eps 8), -7.05 ± 6.15 (eps 3), -0.63 ± 1.16 (eps 1).
 These are the Chapter 6 numbers. ADP-Meta v3 stays frozen at cd74dad; if it is run later, report it separately.
+
+## Follow-up stages (after the main test evaluation) - report separately and disclose
+- `eps16`: ADP-Meta v2 vs fixed noise at eps 16 (weaker privacy), frozen final settings, 3 seeds. One more
+  point on the privacy-utility curve.
+- `v3_val` / `final_v3`: ADP-Meta v3 (frozen at cd74dad, before the test results were seen).
+Any test numbers from these stages are a second, disclosed use of the test set. Model selection stays on
+validation with the same rule.

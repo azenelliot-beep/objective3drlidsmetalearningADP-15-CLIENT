@@ -79,3 +79,18 @@ def test_v3_stage_and_block19_tag():
     assert 'STAGE = "v3_val"' in src and '"final_v3"' in src
     b19 = next(s for s in notebook_cells() if s.startswith("# BLOCK 19 "))
     assert 'TEST_TAG = "v3"' in b19 and "FINAL_TEST = False" in b19
+
+
+def test_eps16_stage_uses_frozen_final_settings(nb, monkeypatch):
+    src = next(s for s in notebook_cells() if s.startswith("# BLOCK 18b "))
+    calls = []
+    saved = dict(nb["CFG"])
+    monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
+    try:
+        exec(re.sub(r'^STAGE = ".*"$', 'STAGE = "eps16"', src, flags=re.M), nb)
+    finally:
+        nb["CFG"].clear(); nb["CFG"].update(saved)
+    (cfg, exps, seeds), = calls
+    assert cfg["TAG"] == "final" and cfg["ADP_ACTIONS"] == "pacing" and cfg["ADP_META_EPISODES"] == 10
+    assert cfg["CLIP_MULT"] == 0.5 and cfg["REWARD_FA"] == 0.5
+    assert exps == [("dp_fixed", 16.0), ("dp_adpmeta", 16.0)] and seeds == [0, 1, 2]
