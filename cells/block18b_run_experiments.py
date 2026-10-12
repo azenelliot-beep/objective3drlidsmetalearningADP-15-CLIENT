@@ -1,9 +1,10 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "final": settings FROZEN after Sweeps 1-2 (clip x0.5 + false-alarm penalty 0.5, same reward for
-# every method). 3 paired seeds x {FedAvg, FedProx (non-private), fixed-noise DP, ADP-Meta DP with meta-learning}
-# x eps {1, 3, 8}. Controllers are meta-trained once per eps on validation and reused for all seeds.
-# Then: Block 18c (validation summary), and ONLY THEN set FINAL_TEST = True in Block 19 and run it once.
-STAGE = "final"
+# Default STAGE = "v3_val": ADP-Meta v3 (noise pacing + adaptive clip, twin-baseline meta-training, one shared
+# controller for eps 8/3/1) vs fixed noise on the frozen settings, seed 0, eps 8 and 1. VALIDATION only.
+# Success rule written BEFORE running (CHANGELOG): ADP-Meta v3 must beat fixed noise by >= 2 val macro-F1 with
+# FAR <= 10% at an eps; then the 3-seed stage "final_v3" decides (mean better AND better on >= 2 of 3 seeds).
+# The test set (Block 19) is used only once, after "final_v3".
+STAGE = "v3_val"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -35,7 +36,13 @@ NEXT = [
     ("S2_B1024",  BASE2 | dict(BATCH=1024, LOCAL_STEPS=200),          [0], [("dp_fixed", 8.0)]),
 ]
 FINAL_CFG = BASE2 | dict(ADP_ACTIONS="pacing", ADP_META_EPISODES=10)        # frozen (CHANGELOG, Sweep 2)
+V3_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip", ADP_META_EPISODES=24)      # ADP-Meta v3 (Block 17c)
 STAGES = {
+    "v3_val": [("v3", V3_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("dp_fixed", 1.0), ("dp_adpmeta", 1.0)])],
+    "final_v3": [("v3", V3_CFG, [0, 1, 2], [
+        ("fedavg_np", None), ("fedprox_np", None),
+        ("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("dp_fixed", 3.0), ("dp_adpmeta", 3.0),
+        ("dp_fixed", 1.0), ("dp_adpmeta", 1.0)])],
     "next": NEXT,
     "main": MAIN,
     "auto": C0 + SWEEP1,

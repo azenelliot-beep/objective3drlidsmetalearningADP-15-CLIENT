@@ -36,7 +36,11 @@ CFG = dict(
     CLIP_MULT=1.0,             # C3: C = CLIP_MULT x median per-sample grad norm on validation
     CH5_ROUNDS=50, CH5_FRAC=0.8, CH5_LOCAL_EPOCHS=2, CH5_OVERSAMPLE_CAP=10,
     RESULTS_DIR="results",
-    FAST=True,                 # Block 16b: train all clients in parallel on the GPU (same algorithm, much faster)
+    FAST=True,
+    # ADP-Meta v3 (Block 17c, ADP_ACTIONS = "pacing_clip")
+    CLIP_ACTIONS=(0.5, 1.0, 2.0),   # clip multiplier on C_base chosen each round
+    META_EPS=(8.0, 3.0, 1.0),       # one shared controller is meta-trained across these budgets
+    TWIN_POOL=4,                    # practice seeds; each has one cached fixed-schedule twin per eps                 # Block 16b: train all clients in parallel on the GPU (same algorithm, much faster)
 )
 _DEFAULT_CFG = dict(CFG)               # Block 18b resets CFG to these defaults before applying a stage
 
@@ -202,6 +206,8 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
     else:
         base = [0.0] * len(clients)
     fast = make_fast(clients)
+    if adaptive and CFG["ADP_ACTIONS"] == "pacing_clip":           # ADP-Meta v3 (Block 17c)
+        return _run_paced_clip(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast)
     if adaptive and CFG["ADP_ACTIONS"] == "pacing":                # ADP-Meta v2 (C5/C6, Block 17b)
         return _run_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast)
     ctrl = ADPMetaController(list(CFG["LEVEL_MULTS"]), device=device) if adaptive else None

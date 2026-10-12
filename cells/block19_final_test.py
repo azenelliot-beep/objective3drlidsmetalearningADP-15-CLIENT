@@ -2,7 +2,7 @@
 # Evaluates each run's validation-selected model on the test set and reports mean +/- std over seeds.
 # Nothing in this cell feeds back into any training or selection decision.
 FINAL_TEST = False          # <- set True only for the single final evaluation
-TEST_TAG = "final"          # only runs of the frozen final stage are evaluated
+TEST_TAG = "v3"             # only runs of this stage tag are evaluated ("final" for the v2 final stage)
 
 if not FINAL_TEST:
     print("FINAL_TEST is False - test set not touched.")

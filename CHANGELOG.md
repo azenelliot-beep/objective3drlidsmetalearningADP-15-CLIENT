@@ -183,3 +183,23 @@ Seeds 0/1/2 x {fedavg_np, fedprox_np, dp_fixed, dp_adpmeta} x eps {8, 3, 1}, tag
 paired ADP-vs-fixed validation table. Block 19 (FINAL_TEST = True, run once) evaluates only "final" runs
 and adds a paired ADP-vs-fixed test table (mean ± std of the difference, seeds where ADP is better).
 Chapter 5 reference rows moved to an optional stage "ch5_reference".
+
+## ADP-Meta v3 (Block 17c, `ADP_ACTIONS = "pacing_clip"`) - user-approved redesign to try to beat fixed noise
+Context: v2 + meta-learning matched but did not beat tuned fixed noise (seed 0: 46.0 vs 49.0). The user allowed
+model changes as long as DDQN, FedProx, ADP and meta-learning stay. The test set has NOT been used (Block 19 held).
+Changes 1-5:
+1. Joint action each round: budget-pacing share k AND clip multiplier m (C_t = C_base * m, m in {0.5, 1, 2}).
+   Privacy depends only on sigma (noise std = sigma * C_t), so accounting is unchanged (tested). Fixed noise
+   keeps its best tuned constant C (x0.5), so the baseline stays at full strength.
+2. Twin-baseline meta-training: each practice episode is compared with a fixed-schedule twin (same proxy
+   split, init and sampling seed). Twins are cached per (seed, eps). The controller samples from its own RNG,
+   so the training RNG streams of an episode and its twin stay aligned until their schedules differ.
+3. Reward = episode score under the model-selection rule (best F1 with FAR <= cap, else F1 minus FAR excess).
+4. Richer state: adds FAR, previous sigma, previous clip multiplier and log10(eps).
+5. 24 practice episodes. ONE controller is shared across eps 8/3/1 (eps is in the state), so meta-training is
+   paid once.
+Policy: 32-16 trunk, two heads, initial bias towards (k = 1, m = 1), i.e. it starts from the fixed schedule. The
+REINFORCE baseline is initialised from the first episode (a zero start caused premature collapse in a toy test).
+Pre-registered success rule: v3 >= fixed + 2 val macro-F1 with FAR <= 10% at an eps (stage "v3_val", seed 0,
+eps 8 and 1); then "final_v3" (3 seeds, eps 8/3/1): mean better AND better on >= 2 of 3 seeds. Otherwise
+report no significant difference.

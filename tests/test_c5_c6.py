@@ -121,7 +121,7 @@ def test_block18b_stages_apply_overrides_on_fresh_defaults(nb, monkeypatch):
         finally:
             nb["CFG"].clear(); nb["CFG"].update(saved)
         return calls
-    assert 'STAGE = "final"' in src                       # default = frozen final stage
+    assert 'STAGE = "v3_val"' in src                      # default = ADP-Meta v3 validation stage
     (fin,) = run("final")
     assert fin[0]["TAG"] == "final" and fin[0]["CLIP_MULT"] == 0.5 and fin[0]["REWARD_FA"] == 0.5
     assert fin[0]["ADP_ACTIONS"] == "pacing" and fin[0]["ADP_META_EPISODES"] == 10 and fin[2] == [0, 1, 2]
@@ -196,6 +196,6 @@ def test_final_paired_tables(nb, small_cfg, tmp_path, monkeypatch):
     exec(next(s for s in notebook_cells() if s.startswith("# BLOCK 18c ")), nb)
     assert list(nb["g"]["seeds"]) == [2]
     b19 = next(s for s in notebook_cells() if s.startswith("# BLOCK 19 "))
-    exec(b19.replace("FINAL_TEST = False", "FINAL_TEST = True"), nb)
+    exec(b19.replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "v3"', 'TEST_TAG = "final"'), nb)
     assert set(nb["tdf"]["run"]) == {"dp_fixed_eps2__final", "dp_adpmeta_eps2__final", "fedprox_np__final"}
     assert nb["paired"].loc["dp_adpmeta_eps2__final", "seeds_ADP_better"].endswith("/2")

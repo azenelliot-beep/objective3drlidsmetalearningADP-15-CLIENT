@@ -13,7 +13,7 @@ KEEP = "__keep_original__"
 # original header prefix -> list of replacement cell files (in order)
 REPLACE = {
     "# BLOCK 16 ": ["block16_dp_client.py", "block16b_fast_federation.py"],
-    "# BLOCK 17 ": [KEEP, "block17b_adpmeta_v2.py"],          # keep Block 17 (v1 controller), add 17b after it
+    "# BLOCK 17 ": [KEEP, "block17b_adpmeta_v2.py", "block17c_adpmeta_v3.py"],          # keep Block 17 (v1 controller), add 17b after it
 }
 # The original FINAL Block 18 starts with a '# ====' banner, matched by this line instead
 REPLACE_BLOCK18_MARKER = "# BLOCK 18 (FINAL)"
