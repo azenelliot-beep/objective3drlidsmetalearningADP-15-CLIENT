@@ -52,6 +52,18 @@ def main():
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
     print(f"wrote {OUT.relative_to(ROOT)} ({len(cells)} cells)")
+    # Ready-to-run variant for the eps = 16 follow-up stage (no manual edits needed)
+    import re
+    for c in nb["cells"]:
+        src = "".join(c["source"])
+        if src.startswith("# BLOCK 18b "):
+            src = re.sub(r'^STAGE = "v3_val"$', 'STAGE = "eps16"', src, flags=re.M)
+        elif src.startswith("# BLOCK 19 "):
+            src = re.sub(r'^TEST_TAG = "v3" ', 'TEST_TAG = "final"', src, flags=re.M)
+        c["source"] = src.splitlines(keepends=True)
+    out16 = OUT.with_name("chapter6_v4_eps16.ipynb")
+    out16.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
+    print(f"wrote {out16.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
