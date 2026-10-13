@@ -1,19 +1,32 @@
-# BLOCK 4 (UPDATED v4): Load and explore the dataset - finds the CSV wherever Kaggle mounted it
+# BLOCK 4 (UPDATED v4): Load and explore the dataset - picks the ToN-IoT CSV by its COLUMNS, not by its file name
 import glob
-DATA_FILE = "TON_IoT_Train_Test_Network.csv"
-_hits = sorted(glob.glob(f"/kaggle/input/**/{DATA_FILE}", recursive=True))
-if not _hits:                                   # fall back: any CSV whose name looks like the ToN-IoT network file
-    _hits = sorted(p for p in glob.glob("/kaggle/input/**/*.csv", recursive=True)
-                   if "ton" in os.path.basename(p).lower() and "network" in os.path.basename(p).lower())
-if not _hits:
+DATA_DIR = "/kaggle/input/datasets/fadiabuzwayed/ton-iot-train-test-network"   # dataset folder on Kaggle
+NEEDED = {"type", "label", "proto", "conn_state"}                               # columns of the ToN-IoT network file
+
+def _tables_under(folder):
+    return sorted(glob.glob(os.path.join(folder, "**", "*.csv"), recursive=True) +
+                  glob.glob(os.path.join(folder, "**", "*.CSV"), recursive=True))
+
+def _is_ton_iot(path):
+    try:
+        return NEEDED <= set(pd.read_csv(path, nrows=0).columns)
+    except Exception:
+        return False
+
+# 1) the dataset folder above, 2) anything else mounted under /kaggle/input (in case Kaggle mounts it elsewhere)
+candidates = _tables_under(DATA_DIR) or _tables_under("/kaggle/input")
+matches = [p for p in candidates if _is_ton_iot(p)]
+if not matches:
+    print("Folder exists:", os.path.isdir(DATA_DIR))
+    for root, _, files in os.walk("/kaggle/input"):
+        print(root, files[:20])
     raise FileNotFoundError(
-        f"{DATA_FILE} not found under /kaggle/input. Add the dataset with 'Add Input' (search: ton-iot-train-test-network). "
-        f"CSV files currently mounted: {glob.glob('/kaggle/input/**/*.csv', recursive=True)}")
-file_path = _hits[0]
+        f"No CSV with columns {sorted(NEEDED)} found in {DATA_DIR} or under /kaggle/input. "
+        "Attach the dataset: right panel -> Add Input -> search 'ton-iot-train-test-network' -> Add.")
+file_path = max(matches, key=os.path.getsize)            # the full network file if several splits are present
 print("Dataset file:", file_path)
 
 df = pd.read_csv(file_path)
-assert "type" in df.columns, f"{file_path} has no 'type' column - wrong file?"
 
 print("Shape:", df.shape)
 print("\nColumns:", df.columns.tolist())
