@@ -202,7 +202,7 @@ def test_v3_and_v2_paths_untouched_by_v4(nb, small_cfg):
 # ---------------- stages, summaries, static checks ----------------
 def test_v4_stages(nb, monkeypatch):
     src = next(s for s in notebook_cells() if s.startswith("# BLOCK 18b "))
-    assert 'STAGE = "v4_val"' in src
+    assert 'STAGE = "v4_quick"' in src
     saved = dict(nb["CFG"])
     def run(name):
         calls = []
@@ -221,6 +221,9 @@ def test_v4_stages(nb, monkeypatch):
     ((cfg_f, exps_f, seeds_f),) = run("final_v4")
     assert seeds_f == [0, 1, 2] and ("fedprox_np", None) in exps_f and ("dp_fixed_proj", 3.0) in exps_f
     assert run("v3_val")[0][0]["ADP_ACTIONS"] == "pacing_clip"            # v3 stage still available
+    ((cfg_q, exps_q, seeds_q),) = run("v4_quick")
+    assert cfg_q["TAG"] == "v4q" and cfg_q["META_EPS"] == (8.0,) and cfg_q["META_TIME_LIMIT_MIN"] == 150
+    assert seeds_q == [0] and exps_q == [("dp_fixed", 8.0), ("dp_fixed_proj", 8.0), ("dp_adpmeta", 8.0)]
 
 def test_paired_tables_include_fair_baseline(nb, small_cfg, tmp_path, monkeypatch):
     small_cfg.update(CLIP_MULT=0.5, REWARD_FA=0.5, ADP_ACTIONS="pacing_clip_rank", ADP_META_EPISODES=1,
@@ -265,3 +268,32 @@ def test_unique_model_components_all_present_and_active():
     b17d = next(s for s in cells if s.startswith("# BLOCK 17d "))
     assert "class ADPMetaV4(ADPMetaV3)" in b17d and "finish_episode(adv)" in b17d       # meta-learning active
     assert "RDPPacer" in b17d and "pacing_share" in b17d                               # ADP pacing active
+
+
+def test_meta_training_time_limit_and_checkpoint_resume(nb, small_cfg, monkeypatch):
+    small_cfg.update(CLIP_MULT=0.5, ADP_ACTIONS="pacing_clip_rank", ADP_META_EPISODES=3, META_EPS=(2.0,),
+                     TWIN_POOL=1, PROXY_MIN_PER_CLIENT=5, RANK_ACTIONS=(16, 0), PROJ_RANK=16, PROJ_ANCHORS=64,
+                     TAG="v4t")
+    calls = []
+    real = nb["_practice_episode_v4"]
+    def boom(*a, **k):                                    # simulate a session cut during the 2nd practice episode
+        calls.append(a[-1])
+        if len(calls) == 3:
+            raise KeyboardInterrupt
+        return real(*a, **k)
+    monkeypatch.setitem(nb, "_practice_episode_v4", boom)
+    with pytest.raises(KeyboardInterrupt):
+        nb["meta_train_controller_v4"](1.0)
+    path = nb["controller_v4_path"]()
+    ck = torch.load(path.replace(".pt", "_ckpt.pt"), weights_only=False)
+    assert len(ck["log"]) == 1 and not os.path.exists(path)
+    monkeypatch.setitem(nb, "_practice_episode_v4", real)
+    nb["meta_train_controller_v4"](1.0)                    # resumes: 2 more episodes, twin reused from checkpoint
+    log = json.load(open(path.replace(".pt", "_meta_log.json")))
+    assert [e["episode"] for e in log["episodes"]] == [1, 2, 3] and log["episodes_run"] == 3
+    assert not os.path.exists(path.replace(".pt", "_ckpt.pt"))
+    os.remove(path)
+    small_cfg.update(META_TIME_LIMIT_MIN=0.0, TAG="v4t2")  # limit: stop after the first episode
+    nb["meta_train_controller_v4"](1.0)
+    log = json.load(open(nb["controller_v4_path"]().replace(".pt", "_meta_log.json")))
+    assert log["episodes_run"] == 1 and log["stopped_by_time_limit"] is True

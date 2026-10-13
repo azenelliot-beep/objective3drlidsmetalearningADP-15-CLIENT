@@ -46,6 +46,7 @@ CFG = dict(
     RANK_ACTIONS=(32, 64, 128, 0),  # public-subspace rank chosen each round; 0 = full space (v3 behaviour)
     PROJ_RANK=64,                   # constant rank of the fair baseline dp_fixed_proj (and the v4 twin / init bias)
     PROJ_ANCHORS=512,               # class-balanced public rows (validation half A) per round for the basis
+    META_TIME_LIMIT_MIN=None,       # v4: stop meta-training before an episode that would end past this (None = off)
 )
 _DEFAULT_CFG = dict(CFG)               # Block 18b resets CFG to these defaults before applying a stage
 

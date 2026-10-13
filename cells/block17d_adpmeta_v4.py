@@ -187,7 +187,9 @@ def _practice_episode_v4(ep_seed, eps_budget, C, policy, XA, yA, val_B, q_real, 
 
 
 def meta_train_controller_v4(C):
-    """Meta-train ONE ADP-Meta v4 controller for all eps in CFG['META_EPS'] (cached). Twin = fair fixed baseline."""
+    """Meta-train ONE ADP-Meta v4 controller for all eps in CFG['META_EPS'] (cached). Twin = fair fixed baseline.
+    Checkpointed after every episode (resumes after a Kaggle timeout). CFG['META_TIME_LIMIT_MIN'] (None = off): no new
+    episode is started if it would not finish within the limit; the number of episodes actually run is logged."""
     path = controller_v4_path()
     if os.path.exists(path):
         ctrl = _new_v4_controller()
@@ -200,8 +202,26 @@ def meta_train_controller_v4(C):
     val_B = TensorDataset(torch.from_numpy(X_val[ib]), torch.from_numpy(y_val[ib]).long())
     q_real = [min(1.0, CFG["BATCH"] / len(ci)) for ci in dp_client_indices]
     pool = [30_000 + i for i in range(CFG["TWIN_POOL"])]
-    twins, log, t0 = {}, [], time.time()
-    for e in range(CFG["ADP_META_EPISODES"]):
+    twins, log, done_min = {}, [], 0.0
+    ckpt = path.replace(".pt", "_ckpt.pt")
+    if os.path.exists(ckpt):                                  # resume after an interrupted session
+        ck = torch.load(ckpt, weights_only=False)
+        ctrl.load_state_dict(ck["ctrl"]); ctrl.opt.load_state_dict(ck["opt"])
+        ctrl.baseline = ck["baseline"]; ctrl.gen.set_state(ck["gen"])
+        twins = {(es, eps): sc for es, eps, sc in ck["twins"]}
+        log, done_min = ck["log"], ck["minutes"]
+        print(f"Resuming v4 meta-training from checkpoint: {len(log)} episodes done, {done_min:.0f} min used")
+    t0 = time.time() - 60 * done_min
+    limit = CFG.get("META_TIME_LIMIT_MIN")
+    stopped_early = False
+    for e in range(len(log), CFG["ADP_META_EPISODES"]):
+        used = (time.time() - t0) / 60
+        per_ep = used / len(log) if log else 0.0              # measured minutes per episode (incl. its twin)
+        if limit is not None and log and used + per_ep > limit:
+            print(f"=== v4 meta-training stopped by META_TIME_LIMIT_MIN={limit}: {len(log)} of "
+                  f"{CFG['ADP_META_EPISODES']} episodes in {used:.0f} min")
+            stopped_early = True
+            break
         eps_b = CFG["META_EPS"][e % len(CFG["META_EPS"])]
         es = pool[(e // len(CFG["META_EPS"])) % len(pool)]
         if (es, eps_b) not in twins:
@@ -215,11 +235,17 @@ def meta_train_controller_v4(C):
                     "advantage": adv, "actions": [(h["action_k"], h["clip_mult"], h["rank_action"]) for h in hist]})
         print(f"=== v4 meta-episode {e+1}/{CFG['ADP_META_EPISODES']} eps={eps_b:g} | score={100*score:.1f} "
               f"twin={100*twins[(es, eps_b)]:.1f} adv={100*adv:+.1f} | {(time.time()-t0)/60:.0f} min")
+        os.makedirs(CFG["RESULTS_DIR"], exist_ok=True)
+        torch.save({"ctrl": ctrl.state_dict(), "opt": ctrl.opt.state_dict(), "baseline": ctrl.baseline,
+                    "gen": ctrl.gen.get_state(), "twins": [[es_, eps_, sc] for (es_, eps_), sc in twins.items()],
+                    "log": log, "minutes": (time.time() - t0) / 60}, ckpt)
     os.makedirs(CFG["RESULTS_DIR"], exist_ok=True)
     torch.save(ctrl.state_dict(), path)
     with open(path.replace(".pt", "_meta_log.json"), "w") as f:
-        json.dump({"episodes": log, "minutes": (time.time() - t0) / 60, "val_halves_seed": SPLIT_SEED,
-                   "cfg": cfg_json()}, f, indent=2)
+        json.dump({"episodes": log, "episodes_run": len(log), "stopped_by_time_limit": stopped_early,
+                   "minutes": (time.time() - t0) / 60, "val_halves_seed": SPLIT_SEED, "cfg": cfg_json()}, f, indent=2)
+    if os.path.exists(ckpt):
+        os.remove(ckpt)
     return ctrl
 
 

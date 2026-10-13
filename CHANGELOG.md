@@ -251,3 +251,12 @@ norm sigma C sqrt(k); clipping in k-space; accounting unchanged; basis rows only
 validation; controller starts at the fair baseline and learns; budget respected; stages; paired tables).
 Expected (estimate, not a result): eps 8 macro-F1 ~52-62 vs 46.3 fixed noise; v4 vs dp_fixed_proj margin 0 to +4.
 Cost estimate: ~22 GPU h on a T4 for v4_val + meta-training + final_v4 (FAST path not yet timed).
+
+## One-session stage "v4_quick" (default) + checkpointed v4 meta-training
+Why: the author has about 5 GPU hours on Kaggle; "v4_val" needs about 13 h.
+What: STAGE "v4_quick" (tag v4q): seed 0, eps 8 only; dp_fixed and dp_fixed_proj run first (saved even if time runs
+out), then meta-training on eps 8 only (up to 12 episodes, 2 twin seeds, hard limit META_TIME_LIMIT_MIN = 150 min:
+no episode is started that would end past the limit), then the frozen greedy ADP-Meta v4 run. Meta-training saves a
+checkpoint after every episode and resumes from it. The meta log records episodes_run and stopped_by_time_limit
+(the number of episodes depends on GPU speed - disclose). Exploratory only: one seed and one eps cannot meet the
+pre-registered rule; a positive result justifies "v4_val"/"final_v4", it does not replace them.

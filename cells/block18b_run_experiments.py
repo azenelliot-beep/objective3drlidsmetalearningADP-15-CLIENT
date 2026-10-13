@@ -1,17 +1,17 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "v4_val": ADP-Meta v4 (Option 2 - noise pacing + adaptive clip + meta-learned PUBLIC-SUBSPACE rank,
-# Block 17d) vs BOTH fixed noise (dp_fixed) and the fair baseline fixed noise + fixed projection (dp_fixed_proj),
-# frozen settings, seed 0, eps 8 and 1. VALIDATION only.
-# Success rule written BEFORE running: ADP-Meta v4 must beat dp_fixed_proj by >= 2 val macro-F1 with FAR <= 10% at an
-# eps; then "final_v4" (3 seeds, eps 8/3/1) decides (mean better AND better on >= 2 of 3 seeds). Gains of
-# dp_fixed_proj over dp_fixed are credited to the projection, not to meta-learning.
+# Default STAGE = "v4_quick" - fits ONE Kaggle session of ~5 h (T4): ADP-Meta v4 (Option 2 - noise pacing + adaptive
+# clip + meta-learned PUBLIC-SUBSPACE rank, Block 17d) vs fixed noise (dp_fixed) and the fair baseline fixed noise +
+# fixed projection (dp_fixed_proj), seed 0, eps 8 only. Baselines run FIRST (results saved even if time runs out),
+# then meta-training (eps 8 only, up to 12 episodes, hard limit META_TIME_LIMIT_MIN = 150 min, checkpointed every
+# episode), then the ADP-Meta v4 run. EXPLORATORY: one seed, one eps - it can justify the 3-seed stage, not replace it.
+# "v4_val" (seed 0, eps 8 and 1, 24 episodes, ~13 h) and "final_v4" (3 seeds, eps 8/3/1) apply the pre-registered
+# rule: v4 >= dp_fixed_proj + 2 val macro-F1 with FAR <= 10%, then mean better AND better on >= 2 of 3 seeds.
+# Gains of dp_fixed_proj over dp_fixed are credited to the projection, not to meta-learning.
 # Any test numbers from v4 are a second, disclosed use of the test set (Chapter 6 v2 test results stay as reported).
 # Other stages stay available unchanged: "v3_val" / "final_v3" (ADP-Meta v3, frozen at cd74dad), "eps16", "final", ...
-# ADP-Meta v3 ("v3_val" / "final_v3") keeps its own pre-registered rule: beat fixed noise by >= 2 val macro-F1
-# with FAR <= 10%, then mean better AND better on >= 2 of 3 seeds.
 # Other choice: STAGE = "eps16" -> one more point on the privacy-utility curve (weaker privacy, eps = 16):
 #   ADP-Meta v2 (frozen final settings, meta-trained for eps 16) vs fixed noise, seeds 0/1/2 (~1.5-2 h).
-STAGE = "v4_val"
+STAGE = "v4_quick"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -46,7 +46,9 @@ FINAL_CFG = BASE2 | dict(ADP_ACTIONS="pacing", ADP_META_EPISODES=10)        # fr
 V3_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip", ADP_META_EPISODES=24)      # ADP-Meta v3 (Block 17c)
 V4_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip_rank", ADP_META_EPISODES=24) # ADP-Meta v4 (Block 17d, Option 2)
 V4_PRIVATE = lambda eps_list: [(m, e) for e in eps_list for m in ("dp_fixed", "dp_fixed_proj", "dp_adpmeta")]
+V4Q_CFG = V4_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META_TIME_LIMIT_MIN=150)
 STAGES = {
+    "v4_quick": [("v4q", V4Q_CFG, [0], V4_PRIVATE([8.0]))],
     "v4_val": [("v4", V4_CFG, [0], V4_PRIVATE([8.0, 1.0]))],
     "final_v4": [("v4", V4_CFG, [0, 1, 2], [("fedavg_np", None), ("fedprox_np", None)] + V4_PRIVATE([8.0, 3.0, 1.0]))],
     "v3_val": [("v3", V3_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("dp_fixed", 1.0), ("dp_adpmeta", 1.0)])],
