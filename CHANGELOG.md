@@ -260,3 +260,8 @@ no episode is started that would end past the limit), then the frozen greedy ADP
 checkpoint after every episode and resumes from it. The meta log records episodes_run and stopped_by_time_limit
 (the number of episodes depends on GPU speed - disclose). Exploratory only: one seed and one eps cannot meet the
 pre-registered rule; a positive result justifies "v4_val"/"final_v4", it does not replace them.
+
+## v4_quick result - Option 2 REJECTED (results/v4_quick_val_results.md)
+Validation, seed 0, eps 8: dp_fixed 49.01 | dp_fixed_proj 38.38 | ADP-Meta v4 23.23 macro-F1. The pre-registered rule
+is not met (v4 - dp_fixed_proj = -15.1). Projection without the residual gradient loses rare-class signal. No further
+v4 tuning (it would be tuning on the outcome); final_v4 and the v4 test evaluation are not run.
