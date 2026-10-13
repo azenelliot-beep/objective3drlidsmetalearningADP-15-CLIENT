@@ -2,7 +2,7 @@
 # Evaluates each run's validation-selected model on the test set and reports mean +/- std over seeds.
 # Nothing in this cell feeds back into any training or selection decision.
 FINAL_TEST = False          # <- set True only for the single final evaluation
-TEST_TAG = "v3"             # only runs of this stage tag are evaluated ("final" for the v2 final stage)
+TEST_TAG = "v4"             # only runs of this stage tag are evaluated ("final" = v2 final stage, "v3")
 
 if not FINAL_TEST:
     print("FINAL_TEST is False - test set not touched.")
@@ -42,10 +42,12 @@ else:
     # Paired ADP-Meta vs fixed noise on TEST (same eps and seed)
     pr = []
     for _, c in tdf[tdf["run"].str.startswith("dp_adpmeta_eps")].iterrows():
-        f = tdf[(tdf["run"] == c["run"].replace("dp_adpmeta", "dp_fixed")) & (tdf["seed"] == c["seed"])]
-        if len(f):
-            pr.append({"run": c["run"], "seed": c["seed"], "dMacroF1": c["MacroF1"] - f.iloc[0]["MacroF1"],
-                       "dAcc": c["Acc"] - f.iloc[0]["Acc"], "dFAR": c["FAR"] - f.iloc[0]["FAR"]})
+        for ref_method in ("dp_fixed", "dp_fixed_proj"):           # v4: also vs the fair projection baseline
+            f = tdf[(tdf["run"] == c["run"].replace("dp_adpmeta", ref_method)) & (tdf["seed"] == c["seed"])]
+            if len(f):
+                pr.append({"run": c["run"] + ("" if ref_method == "dp_fixed" else "  vs fixed_proj"),
+                           "seed": c["seed"], "dMacroF1": c["MacroF1"] - f.iloc[0]["MacroF1"],
+                           "dAcc": c["Acc"] - f.iloc[0]["Acc"], "dFAR": c["FAR"] - f.iloc[0]["FAR"]})
     if pr:
         pdt = pd.DataFrame(pr)
         paired = pdt.groupby("run").agg(dMacroF1=("dMacroF1", pm), dAcc=("dAcc", pm), dFAR=("dFAR", pm),

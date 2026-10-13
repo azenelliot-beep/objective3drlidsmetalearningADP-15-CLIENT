@@ -18,6 +18,7 @@ first; ADP-Meta is compared against the *tuned* fixed-noise baseline, never an u
 | C6 | Meta-train the controller on validation (half A proxies, half B reward), frozen greedy policy | `ADP_META_EPISODES` | dp_adpmeta (stage `C6_meta`) | code done |
 | C2 | Class-aware clipping (demoted: results.md shows rare classes survive clipping without noise) | `CLIP_MODE` | dp_fixed | optional |
 | C12 | Communication, runtime, per-client fairness, membership-inference attack | - | evaluation only | planned |
+| V4 | Option 2: public-subspace projection (GEP-style) + ADP-Meta v4 meta-learned rank; fair baseline dp_fixed_proj | `ADP_ACTIONS="pacing_clip_rank"`, `RANK_ACTIONS`, `PROJ_RANK`, `PROJ_ANCHORS` | dp_fixed, dp_fixed_proj, dp_adpmeta (stage `v4_val`, then `final_v4`) | code done |
 
 C6 decision (user): option (a), practice episodes on validation, disclosed. See CHANGELOG.
 

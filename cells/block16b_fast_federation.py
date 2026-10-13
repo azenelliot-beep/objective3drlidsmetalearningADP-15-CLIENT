@@ -6,6 +6,7 @@
 # Adam is element-wise, so ONE Adam over the stacked [K, ...] tensors is K independent per-client Adams.
 # Privacy accounting stays in each client's own RDP accountant (DPClient), step by step as before.
 # Needs every client to train every round (CLIENT_FRAC = 1.0, the thesis setting); otherwise the per-client loop runs.
+# v4: fast.basis = V (public subspace, Block 17d) -> the same projected clip + k-space noise as DPClient; None = unchanged.
 from torch.func import stack_module_state
 
 
@@ -42,6 +43,7 @@ class FastFederation:
         self._q = vmap(q_all)
         self._g = vmap(vmap(grad(loss_one), in_dims=(None, None, 0, 0, 0)), in_dims=(0, 0, 0, 0, 0))
         self.last_grad = None
+        self.basis = None                                   # v4: public-subspace basis V (d x k) or None = full space
 
     def _epsilon(self):
         a = self.ag
@@ -70,16 +72,25 @@ class FastFederation:
             else:
                 factor = torch.ones(K, B, device=dev)
             factor = factor * valid
-            summed = {k: (gi * factor.view(K, B, *([1] * (gi.dim() - 2)))).sum(1) for k, gi in g.items()}
+            if self.basis is None:
+                summed = {k: (gi * factor.view(K, B, *([1] * (gi.dim() - 2)))).sum(1) for k, gi in g.items()}
+            else:                                           # v4: clip + noise inside the public subspace
+                G = torch.cat([g[k].reshape(K, B, -1) for k in self.names], 2)
+                like = {k: self.params[k][0] for k in self.names}
+                summed = flat_to_params(projected_private_sum(G, self.basis, self.C, sigma, valid=valid), like)
         else:
             summed = {k: torch.zeros_like(v) for k, v in self.params.items()}
+            if self.basis is not None:                      # empty batches: the subspace noise is still added
+                like = {k: self.params[k][0] for k in self.names}
+                G = torch.zeros(K, 0, self.basis.shape[0], device=dev)
+                summed = flat_to_params(projected_private_sum(G, self.basis, self.C, sigma), like)
         ebs = self.q * self.n
         grads = {}
         for k in self.names:
             p = self.params[k]
             shape = (K,) + (1,) * (p.dim() - 1)
             gk = summed[k]
-            if bool((sigma > 0).any()):
+            if bool((sigma > 0).any()) and self.basis is None:
                 gk = gk + torch.randn_like(p) * (sigma * self.C).view(shape)
             gk = gk / ebs.view(shape)
             if mu > 0:

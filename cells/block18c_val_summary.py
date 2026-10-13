@@ -43,11 +43,13 @@ else:
     # Paired ADP-Meta vs fixed noise (same tag, eps and seed)
     pairs = []
     for _, c in vdf[vdf["run"].str.startswith("dp_adpmeta_eps")].iterrows():
-        f = vdf[(vdf["run"] == c["run"].replace("dp_adpmeta", "dp_fixed")) & (vdf["seed"] == c["seed"])]
-        if len(f):
-            f = f.iloc[0]
-            pairs.append({"run": c["run"], "seed": c["seed"], "ADP_F1": c["MacroF1"], "fixed_F1": f["MacroF1"],
-                          "dF1": c["MacroF1"] - f["MacroF1"], "ADP_FAR": c["FAR"], "fixed_FAR": f["FAR"]})
+        for ref_method in ("dp_fixed", "dp_fixed_proj"):           # v4: also vs the fair projection baseline
+            f = vdf[(vdf["run"] == c["run"].replace("dp_adpmeta", ref_method)) & (vdf["seed"] == c["seed"])]
+            if len(f):
+                f = f.iloc[0]
+                pairs.append({"run": c["run"] + ("" if ref_method == "dp_fixed" else "  vs fixed_proj"),
+                              "seed": c["seed"], "ADP_F1": c["MacroF1"], "fixed_F1": f["MacroF1"],
+                              "dF1": c["MacroF1"] - f["MacroF1"], "ADP_FAR": c["FAR"], "fixed_FAR": f["FAR"]})
     if pairs:
         pdf_ = pd.DataFrame(pairs)
         print("\nADP-Meta vs fixed noise, paired by seed (validation)\n", pdf_.round(2).to_string(index=False))

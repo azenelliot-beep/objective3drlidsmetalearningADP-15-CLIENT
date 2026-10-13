@@ -13,7 +13,8 @@ KEEP = "__keep_original__"
 # original header prefix -> list of replacement cell files (in order)
 REPLACE = {
     "# BLOCK 16 ": ["block16_dp_client.py", "block16b_fast_federation.py"],
-    "# BLOCK 17 ": [KEEP, "block17b_adpmeta_v2.py", "block17c_adpmeta_v3.py"],          # keep Block 17 (v1 controller), add 17b after it
+    "# BLOCK 17 ": [KEEP, "block17b_adpmeta_v2.py", "block17c_adpmeta_v3.py",
+                    "block17d_adpmeta_v4.py"],          # keep Block 17 (v1 controller), add 17b after it
 }
 # The original FINAL Block 18 starts with a '# ====' banner, matched by this line instead
 REPLACE_BLOCK18_MARKER = "# BLOCK 18 (FINAL)"
@@ -57,9 +58,9 @@ def main():
     for c in nb["cells"]:
         src = "".join(c["source"])
         if src.startswith("# BLOCK 18b "):
-            src = re.sub(r'^STAGE = "v3_val"$', 'STAGE = "eps16"', src, flags=re.M)
+            src = re.sub(r'^STAGE = ".*"$', 'STAGE = "eps16"', src, flags=re.M)
         elif src.startswith("# BLOCK 19 "):
-            src = re.sub(r'^TEST_TAG = "v3" ', 'TEST_TAG = "final"', src, flags=re.M)
+            src = re.sub(r'^TEST_TAG = "\w*" ', 'TEST_TAG = "final"', src, flags=re.M)
         c["source"] = src.splitlines(keepends=True)
     out16 = OUT.with_name("chapter6_v4_eps16.ipynb")
     out16.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")

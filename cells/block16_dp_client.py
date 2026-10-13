@@ -8,6 +8,12 @@
 #   - noise_multiplier = 0 -> no noise and NO accountant step; such a client reports epsilon = None (never a number)
 #   - clip_norm = None -> no clipping; only allowed together with noise_multiplier = 0 (non-private baselines)
 #   - projected_epsilon(sigma, steps) lives here so every runner uses the same pre-round budget check
+# v4 (Option 2, public-subspace projection; used only by Block 17d, default OFF):
+#   - client.basis = V (d x k, orthonormal columns, built from PUBLIC data only) -> each per-sample gradient is
+#     projected to e_i = V^T g_i, clipped to ||e_i|| <= C, summed, N(0, (sigma*C)^2 I_k) noise is added in the
+#     k-dim space and the result is mapped back with V. Sensitivity is still C and V does not depend on private
+#     data, so the RDP accounting is unchanged; the noise norm drops from ~sigma*C*sqrt(d) to sigma*C*sqrt(k).
+#   - client.basis = None (default) -> exactly the full-space DP-SGD step above (code path unchanged).
 import copy
 import math
 import torch.nn.functional as F
@@ -28,6 +34,36 @@ print("DP training data per class:", dict(zip(class_names, np.bincount(y_dp, min
 print("DP client sizes (seed", SEED, "):", [len(ci) for ci in dp_client_indices])
 
 
+def flat_to_params(vec, like):
+    """Split a flat [..., d] tensor into tensors shaped like `like` (dict name -> tensor), in dict order."""
+    out, off, lead = {}, 0, vec.shape[:-1]
+    for k, v in like.items():
+        n = v.numel()
+        out[k] = vec[..., off:off + n].reshape(*lead, *v.shape)
+        off += n
+    assert off == vec.shape[-1], "flat vector length does not match the parameters"
+    return out
+
+
+def projected_private_sum(G, basis, C, sigma, valid=None):
+    """v4 projection step. G: [..., B, d] per-sample gradients; basis V: [d, k].
+    Returns sum_i clip_C(V^T g_i) + N(0, (sigma*C)^2 I_k), mapped back to [..., d] (noise only if sigma > 0).
+    sigma may be a float or a [...] tensor (one value per client)."""
+    E = G @ basis                                                           # [..., B, k]
+    if C is not None:
+        factor = (C / (E.norm(dim=-1) + 1e-12)).clamp(max=1.0)              # per-sample clipping in k-space
+    else:
+        factor = torch.ones(E.shape[:-1], device=E.device)
+    if valid is not None:
+        factor = factor * valid
+    e = (E * factor.unsqueeze(-1)).sum(-2)                                  # [..., k]
+    sig = torch.as_tensor(sigma, dtype=e.dtype, device=e.device)
+    if bool((sig > 0).any()):
+        assert C is not None, "DP guard: noise without clipping has unbounded sensitivity"
+        e = e + torch.randn_like(e) * (sig * C).reshape(*sig.shape, *([1] * (e.dim() - sig.dim())))
+    return e @ basis.T                                                      # back to parameter space [..., d]
+
+
 class DPClient:
     def __init__(self, ddqn, X_local, y_local, device, model_name="Client",
                  batch_size=64, clip_norm=1.0, delta=1e-5):
@@ -41,6 +77,7 @@ class DPClient:
         self.accountant = RDPAccountant()
         self.nonprivate_steps = 0                          # steps taken with sigma = 0 (no privacy claim possible)
         self.mu, self.global_params = 0.0, None
+        self.basis = None                                  # v4: public-subspace basis V (d x k) or None = full space
 
     def epsilon_spent(self):
         if self.nonprivate_steps:
@@ -84,14 +121,21 @@ class DPClient:
                 factor = (self.C / (norms + 1e-12)).clamp(max=1.0)        # per-sample clipping
             else:
                 factor = torch.ones(B, device=self.device)                 # non-private baseline: no clipping
-            summed = {k: (gi * factor.view(-1, *([1] * (gi.dim() - 1)))).sum(0) for k, gi in g.items()}
+            if self.basis is None:
+                summed = {k: (gi * factor.view(-1, *([1] * (gi.dim() - 1)))).sum(0) for k, gi in g.items()}
+            else:                                       # v4: clip + noise inside the public subspace
+                G = torch.cat([g[k].reshape(B, -1) for k in params], 1)
+                summed = flat_to_params(projected_private_sum(G, self.basis, self.C, sigma), params)
         else:
             summed = {k: torch.zeros_like(v) for k, v in params.items()}
+            if self.basis is not None:                  # empty batch: the subspace noise is still added
+                G = torch.zeros(0, self.basis.shape[0], device=self.device)
+                summed = flat_to_params(projected_private_sum(G, self.basis, self.C, sigma), params)
 
         expected_bs = self.q * self.n
         for k, p in net.named_parameters():
             p.grad = summed[k] / expected_bs
-            if sigma > 0:
+            if sigma > 0 and self.basis is None:        # full-space noise (with a basis it was added in k-space)
                 p.grad = p.grad + torch.normal(0.0, sigma * self.C, size=p.shape, device=self.device) / expected_bs
             if self.global_params is not None and self.mu > 0:          # FedProx: data-independent, no privacy cost
                 p.grad = p.grad + self.mu * (p.detach() - self.global_params[k])

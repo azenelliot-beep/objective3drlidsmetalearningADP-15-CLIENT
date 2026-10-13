@@ -6,6 +6,7 @@
 #     dp_clip_nonoise         : DP pipeline with clipping but sigma = 0 (diagnostic: cost of clipping alone)
 #     dp_fixed                : record-level DP-SGD, constant noise calibrated to the budget over all rounds
 #     dp_adpmeta              : record-level DP-SGD, ADP-Meta controller (Block 17) picks the noise each round
+#     dp_fixed_proj           : dp_fixed + public-subspace projection at a constant rank (fair baseline for v4)
 #     fedavg_ch5 / fedprox_ch5: Chapter 5 non-private pipeline (resampled data, 42.6k DDQN, gamma 0.1) - reference
 #   Model selection (fixed BEFORE any new test result, applied to EVERY method):
 #     highest validation macro-F1 among rounds with validation FAR <= FAR_CAP;
@@ -23,7 +24,7 @@ CFG = dict(
     ROUNDS=20, LOCAL_STEPS=400, BATCH=256, LR=1e-3, CLIENT_FRAC=1.0, MU=0.01, DELTA=1e-5,
     FAR_CAP=0.10,
     LEVEL_MULTS=(0.8, 0.9, 1.0, 1.2, 1.5), LAMBDA=1.0,         # ADP-Meta v1 (legacy, ADP_ACTIONS="mult")
-    ADP_ACTIONS="mult",                                          # "mult" = v1 (C0) | "pacing" = v2 (C5, Block 17b)
+    ADP_ACTIONS="mult",          # "mult" = v1 (C0) | "pacing" = v2 (17b) | "pacing_clip" = v3 (17c) | "pacing_clip_rank" = v4 (17d)
     PACE_ACTIONS=(0.5, 0.75, 1.0, 1.5, 2.0), ADP_LR=1e-2, ADP_ENTROPY=0.01,
     ADP_META_EPISODES=0,                                         # C6: >0 -> meta-train on validation, then frozen
     PROXY_MIN_PER_CLIENT=50,
@@ -40,7 +41,11 @@ CFG = dict(
     # ADP-Meta v3 (Block 17c, ADP_ACTIONS = "pacing_clip")
     CLIP_ACTIONS=(0.5, 1.0, 2.0),   # clip multiplier on C_base chosen each round
     META_EPS=(8.0, 3.0, 1.0),       # one shared controller is meta-trained across these budgets
-    TWIN_POOL=4,                    # practice seeds; each has one cached fixed-schedule twin per eps                 # Block 16b: train all clients in parallel on the GPU (same algorithm, much faster)
+    TWIN_POOL=4,                    # practice seeds; each has one cached fixed-schedule twin per eps
+    # ADP-Meta v4 (Block 17d, ADP_ACTIONS = "pacing_clip_rank") and its fair baseline "dp_fixed_proj"
+    RANK_ACTIONS=(32, 64, 128, 0),  # public-subspace rank chosen each round; 0 = full space (v3 behaviour)
+    PROJ_RANK=64,                   # constant rank of the fair baseline dp_fixed_proj (and the v4 twin / init bias)
+    PROJ_ANCHORS=512,               # class-balanced public rows (validation half A) per round for the basis
 )
 _DEFAULT_CFG = dict(CFG)               # Block 18b resets CFG to these defaults before applying a stage
 
@@ -180,6 +185,7 @@ METHODS_DP_PIPELINE = {
     "dp_clip_nonoise"    : ("MU",        True,   False,   False),
     "dp_fixed"           : ("MU",        True,   True,    False),
     "dp_adpmeta"         : ("MU",        True,   True,    True),
+    "dp_fixed_proj"      : ("MU",        True,   True,    False),
 }
 
 def run_dp_pipeline(method, seed, eps_budget=None, C=None):
@@ -206,6 +212,10 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
     else:
         base = [0.0] * len(clients)
     fast = make_fast(clients)
+    if method == "dp_fixed_proj":                                  # fair baseline for ADP-Meta v4 (Block 17d)
+        return _run_v4(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast, adaptive=False)
+    if adaptive and CFG["ADP_ACTIONS"] == "pacing_clip_rank":      # ADP-Meta v4 (Block 17d)
+        return _run_v4(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast, adaptive=True)
     if adaptive and CFG["ADP_ACTIONS"] == "pacing_clip":           # ADP-Meta v3 (Block 17c)
         return _run_paced_clip(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast)
     if adaptive and CFG["ADP_ACTIONS"] == "pacing":                # ADP-Meta v2 (C5/C6, Block 17b)
@@ -341,7 +351,10 @@ def run_all(experiments, seeds):
             if os.path.exists(result_path(name, seed)):
                 with open(result_path(name, seed)) as f:
                     old = json.load(f)["cfg"]
-                diff = {k for k in set(old) | set(cfg_json()) if k != "RESULTS_DIR" and old.get(k) != cfg_json().get(k)}
+                # keys added to CFG after a run was saved count as their default (old runs stay resumable)
+                dflt = {k: (list(v) if isinstance(v, tuple) else v) for k, v in _DEFAULT_CFG.items()}
+                diff = {k for k in set(old) | set(cfg_json())
+                        if k != "RESULTS_DIR" and old.get(k, dflt.get(k)) != cfg_json().get(k)}
                 if diff:
                     raise ValueError(f"{name} seed {seed} exists with a DIFFERENT config ({sorted(diff)}). "
                                      f"Set CFG['TAG'] to a new name for this ablation.")

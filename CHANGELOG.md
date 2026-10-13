@@ -221,3 +221,33 @@ These are the Chapter 6 numbers. ADP-Meta v3 stays frozen at cd74dad; if it is r
 - `v3_val` / `final_v3`: ADP-Meta v3 (frozen at cd74dad, before the test results were seen).
 Any test numbers from these stages are a second, disclosed use of the test set. Model selection stays on
 validation with the same rule.
+
+## ADP-Meta v4 / Option 2 (Block 17d, `ADP_ACTIONS = "pacing_clip_rank"`) - public-subspace projection, meta-learned rank
+Context: v2 lost to tuned fixed noise on test at eps 8 (-6.7 macro-F1). Analysis: pacing alone cannot win (uniform pacing
+is near optimal), so v4 attacks the signal-to-noise ratio itself. User-approved; every existing component stays
+(DDQN detector, 15-client FedProx mu = 0.01, record-level local DP-SGD, Opacus RDP accounting, RDP budget pacing,
+adaptive clip, twin-baseline REINFORCE meta-training). Nothing was removed, disabled or commented out.
+What:
+1. Projection (GEP / PDP-SGD style) in Blocks 16/16b: `client.basis = V` (d x k, orthonormal). Per-sample gradients are
+   projected (V^T g_i), clipped to C in k-space, summed, N(0, (sigma C)^2 I_k) noise is added, and the result is mapped
+   back with V. Sensitivity stays C and V is independent of private data -> accounting unchanged (tested). Noise norm
+   sigma C sqrt(k) instead of sigma C sqrt(d), d = 4,522 DDQN parameters. `basis = None` (default) = old code path.
+2. Public basis each round: top-k right singular vectors of per-sample TD gradients of the CURRENT global DDQN on
+   PROJ_ANCHORS = 512 class-balanced rows of validation half A (own RNGs, so training/twin RNG streams are not shifted).
+3. Controller ADPMetaV4 (subclass of v3): three heads - pacing k, clip multiplier m, rank r in RANK_ACTIONS = (32, 64,
+   128, 0); 0 = full space (v3 behaviour). Initial bias = fair fixed baseline (k = 1, m = 1, r = PROJ_RANK = 64).
+4. Fair baseline `dp_fixed_proj`: fixed noise + constant rank 64 + constant clip. The v4 meta-training twin is this
+   baseline, so the controller is trained to beat the fair baseline, not plain fixed noise.
+5. Block 18c/19 pair ADP-Meta with both dp_fixed and dp_fixed_proj. run_all treats CFG keys missing from an old result
+   as their default, so earlier runs stay resumable (a real config change is still refused - tested).
+Threat-model amendment (disclose in the thesis): validation half A (server-held public data) may now also shape the
+gradient subspace. It is never used as training records for the reported detector; the test set is never used.
+Pre-registered rule (written before any v4 run): stage "v4_val" (seed 0, eps 8 and 1) - v4 >= dp_fixed_proj + 2 val
+macro-F1 with FAR <= 10% at an eps; then "final_v4" (3 seeds, eps 8/3/1): mean better AND better on >= 2 of 3 seeds.
+Gains of dp_fixed_proj over dp_fixed are credited to the projection, not to meta-learning. Any v4 test numbers are a
+second, disclosed use of the test set; the Chapter 6 v2 test table stays as reported.
+Tests: `tests/test_v4.py` (identity basis == full-space step; fast path == loop with a basis; noise lies in span(V) with
+norm sigma C sqrt(k); clipping in k-space; accounting unchanged; basis rows only from half A; detector never trains on
+validation; controller starts at the fair baseline and learns; budget respected; stages; paired tables).
+Expected (estimate, not a result): eps 8 macro-F1 ~52-62 vs 46.3 fixed noise; v4 vs dp_fixed_proj margin 0 to +4.
+Cost estimate: ~22 GPU h on a T4 for v4_val + meta-training + final_v4 (FAST path not yet timed).

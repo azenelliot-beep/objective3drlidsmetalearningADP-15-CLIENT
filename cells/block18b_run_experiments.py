@@ -1,12 +1,17 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "v3_val": ADP-Meta v3 (noise pacing + adaptive clip, twin-baseline meta-training, one shared
-# controller for eps 8/3/1) vs fixed noise on the frozen settings, seed 0, eps 8 and 1. VALIDATION only.
-# Success rule written BEFORE running (CHANGELOG): ADP-Meta v3 must beat fixed noise by >= 2 val macro-F1 with
-# FAR <= 10% at an eps; then the 3-seed stage "final_v3" decides (mean better AND better on >= 2 of 3 seeds).
-# The test set (Block 19) is used only once, after "final_v3".
+# Default STAGE = "v4_val": ADP-Meta v4 (Option 2 - noise pacing + adaptive clip + meta-learned PUBLIC-SUBSPACE rank,
+# Block 17d) vs BOTH fixed noise (dp_fixed) and the fair baseline fixed noise + fixed projection (dp_fixed_proj),
+# frozen settings, seed 0, eps 8 and 1. VALIDATION only.
+# Success rule written BEFORE running: ADP-Meta v4 must beat dp_fixed_proj by >= 2 val macro-F1 with FAR <= 10% at an
+# eps; then "final_v4" (3 seeds, eps 8/3/1) decides (mean better AND better on >= 2 of 3 seeds). Gains of
+# dp_fixed_proj over dp_fixed are credited to the projection, not to meta-learning.
+# Any test numbers from v4 are a second, disclosed use of the test set (Chapter 6 v2 test results stay as reported).
+# Other stages stay available unchanged: "v3_val" / "final_v3" (ADP-Meta v3, frozen at cd74dad), "eps16", "final", ...
+# ADP-Meta v3 ("v3_val" / "final_v3") keeps its own pre-registered rule: beat fixed noise by >= 2 val macro-F1
+# with FAR <= 10%, then mean better AND better on >= 2 of 3 seeds.
 # Other choice: STAGE = "eps16" -> one more point on the privacy-utility curve (weaker privacy, eps = 16):
 #   ADP-Meta v2 (frozen final settings, meta-trained for eps 16) vs fixed noise, seeds 0/1/2 (~1.5-2 h).
-STAGE = "v3_val"
+STAGE = "v4_val"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -39,7 +44,11 @@ NEXT = [
 ]
 FINAL_CFG = BASE2 | dict(ADP_ACTIONS="pacing", ADP_META_EPISODES=10)        # frozen (CHANGELOG, Sweep 2)
 V3_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip", ADP_META_EPISODES=24)      # ADP-Meta v3 (Block 17c)
+V4_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip_rank", ADP_META_EPISODES=24) # ADP-Meta v4 (Block 17d, Option 2)
+V4_PRIVATE = lambda eps_list: [(m, e) for e in eps_list for m in ("dp_fixed", "dp_fixed_proj", "dp_adpmeta")]
 STAGES = {
+    "v4_val": [("v4", V4_CFG, [0], V4_PRIVATE([8.0, 1.0]))],
+    "final_v4": [("v4", V4_CFG, [0, 1, 2], [("fedavg_np", None), ("fedprox_np", None)] + V4_PRIVATE([8.0, 3.0, 1.0]))],
     "v3_val": [("v3", V3_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("dp_fixed", 1.0), ("dp_adpmeta", 1.0)])],
     "final_v3": [("v3", V3_CFG, [0, 1, 2], [
         ("fedavg_np", None), ("fedprox_np", None),
