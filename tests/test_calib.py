@@ -11,6 +11,12 @@ def block(prefix):
     return next(s for s in notebook_cells() if s.startswith(prefix))
 
 
+def calib_src(tag="final", test=True):
+    """Block 18d with the tag / test flag used by these tests (the notebook default is v3q, no test)."""
+    s = re.sub(r'^CALIB_TAG = "\w*"', f'CALIB_TAG = "{tag}"', block("# BLOCK 18d "), flags=re.M)
+    return re.sub(r'^CALIB_TEST = \w+', f'CALIB_TEST = {test}', s, flags=re.M)
+
+
 def test_tau_zero_reproduces_argmax_and_choose_tau_respects_cap(nb):
     rng = np.random.default_rng(0)
     q = rng.normal(size=(500, nb["action_dim"])).astype(np.float32)
@@ -31,7 +37,7 @@ def test_calibration_end_to_end_is_evaluation_only(nb, small_cfg, tmp_path, monk
     d = small_cfg["RESULTS_DIR"]
     before = {f: open(os.path.join(d, f), "rb").read() for f in os.listdir(d)}
     monkeypatch.chdir(tmp_path)
-    exec(block("# BLOCK 18d "), nb)
+    exec(calib_src(), nb)
     cal = nb["cal_df"]
     assert set(cal["run"]) == {"dp_fixed_eps2__final", "dp_adpmeta_eps2__final"}
     for f, b in before.items():                                  # nothing trained or overwritten
@@ -52,7 +58,7 @@ def test_calibration_end_to_end_is_evaluation_only(nb, small_cfg, tmp_path, monk
 
 def test_calib_stage_uses_existing_results_and_trains_only_missing(nb, small_cfg, monkeypatch):
     src = block("# BLOCK 18b ")
-    assert 'STAGE = "calib"' in src
+    assert '"calib"' in src
     small_cfg.update(TAG="final")
     os.makedirs(small_cfg["RESULTS_DIR"], exist_ok=True)
     json.dump({"cfg": {}}, open(nb["result_path"]("dp_fixed_eps8__final", 0), "w"))   # pretend it was imported
@@ -61,7 +67,7 @@ def test_calib_stage_uses_existing_results_and_trains_only_missing(nb, small_cfg
     monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
     monkeypatch.setitem(nb, "_DEFAULT_CFG", dict(nb["_DEFAULT_CFG"], RESULTS_DIR=small_cfg["RESULTS_DIR"]))
     try:
-        exec(src, nb)
+        exec(re.sub(r'^STAGE = ".*"$', 'STAGE = "calib"', src, flags=re.M), nb)
     finally:
         nb["CFG"].clear(); nb["CFG"].update(saved)
     assert [(e, s) for _, e, s in calls] == [([("dp_adpmeta", 8.0)], [0])]
@@ -86,7 +92,33 @@ def test_summary_and_test_cells_ignore_non_run_json(nb, small_cfg, tmp_path, mon
     assert list(vdf["run"]) == ["dp_fixed_eps2__final"]
     monkeypatch.chdir(tmp_path)
     exec(block("# BLOCK 18c "), nb)
-    exec(block("# BLOCK 18d "), nb)
+    exec(calib_src(), nb)
     assert list(nb["cal_df"]["run"]) == ["dp_fixed_eps2__final"]
     exec(block("# BLOCK 19 ").replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "v4"', 'TEST_TAG = "final"'), nb)
     assert list(nb["tdf"]["run"]) == ["dp_fixed_eps2__final"]
+
+
+def test_default_is_v3_quick_with_frozen_v3_design(nb, monkeypatch):
+    src = block("# BLOCK 18b ")
+    assert 'STAGE = "v3_quick"' in src
+    saved = dict(nb["CFG"]); calls = []
+    monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
+    try:
+        exec(src, nb)
+    finally:
+        nb["CFG"].clear(); nb["CFG"].update(saved)
+    ((cfg, exps, seeds),) = calls
+    assert cfg["TAG"] == "v3q" and cfg["ADP_ACTIONS"] == "pacing_clip" and cfg["META_EPS"] == (8.0,)
+    assert cfg["CLIP_MULT"] == 0.5 and cfg["REWARD_FA"] == 0.5 and cfg["MU"] == 0.01
+    assert cfg["CLIP_ACTIONS"] == (0.5, 1.0, 2.0) and cfg["META_TIME_LIMIT_MIN"] == 180
+    assert exps == [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)] and seeds == [0]
+    b18d = block("# BLOCK 18d ")
+    assert 'CALIB_TAG = "v3q"' in b18d and "CALIB_TEST = False" in b18d
+
+
+def test_v3_meta_time_limit(nb, small_cfg):
+    small_cfg.update(CLIP_MULT=0.5, ADP_ACTIONS="pacing_clip", ADP_META_EPISODES=3, META_EPS=(2.0,), TWIN_POOL=1,
+                     PROXY_MIN_PER_CLIENT=5, META_TIME_LIMIT_MIN=0.0, TAG="v3t")
+    nb["meta_train_controller_v3"](1.0)
+    log = json.load(open(nb["controller_v3_path"]().replace(".pt", "_meta_log.json")))
+    assert log["episodes_run"] == 1 and log["stopped_by_time_limit"] is True

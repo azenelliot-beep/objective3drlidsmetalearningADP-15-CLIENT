@@ -61,7 +61,7 @@ def main():
         if src.startswith("# BLOCK 18b "):
             src = re.sub(r'^STAGE = ".*"$', 'STAGE = "eps16"', src, flags=re.M)
         elif src.startswith("# BLOCK 18d "):
-            src = re.sub(r'^CALIB_TEST = True ', 'CALIB_TEST = False', src, flags=re.M)
+            src = re.sub(r'^CALIB_TEST = \w+ ', 'CALIB_TEST = False', src, flags=re.M)
         elif src.startswith("# BLOCK 19 "):
             src = re.sub(r'^TEST_TAG = "\w*" ', 'TEST_TAG = "final"', src, flags=re.M)
         c["source"] = src.splitlines(keepends=True)

@@ -159,7 +159,13 @@ def meta_train_controller_v3(C):
     pool = [20_000 + i for i in range(CFG["TWIN_POOL"])]
     twins, log, t0 = {}, [], time.time()
     fixed = lambda s: (1.0, 1.0)
+    limit, stopped_early = CFG.get("META_TIME_LIMIT_MIN"), False     # None (default) = no limit, behaviour unchanged
     for e in range(CFG["ADP_META_EPISODES"]):
+        used = (time.time() - t0) / 60
+        if limit is not None and log and used + used / len(log) > limit:
+            print(f"=== v3 meta-training stopped by META_TIME_LIMIT_MIN={limit}: {len(log)} episodes in {used:.0f} min")
+            stopped_early = True
+            break
         eps_b = CFG["META_EPS"][e % len(CFG["META_EPS"])]
         es = pool[(e // len(CFG["META_EPS"])) % len(pool)]
         if (es, eps_b) not in twins:
@@ -176,7 +182,8 @@ def meta_train_controller_v3(C):
     os.makedirs(CFG["RESULTS_DIR"], exist_ok=True)
     torch.save(ctrl.state_dict(), path)
     with open(path.replace(".pt", "_meta_log.json"), "w") as f:
-        json.dump({"episodes": log, "minutes": (time.time() - t0) / 60, "val_halves_seed": SPLIT_SEED,
+        json.dump({"episodes": log, "episodes_run": len(log), "stopped_by_time_limit": stopped_early,
+                   "minutes": (time.time() - t0) / 60, "val_halves_seed": SPLIT_SEED,
                    "cfg": cfg_json()}, f, indent=2)
     return ctrl
 

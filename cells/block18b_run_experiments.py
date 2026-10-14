@@ -1,14 +1,13 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "calib" - the thesis model with the ADP-Meta v2 FINAL settings (the version that passed validation
-# and has the Chapter 6 test results), then Block 18d adds (A) the weak-class confusion check and (B) detection-threshold
-# calibration. Fits ONE ~5 h Kaggle session:
-#   - If an earlier notebook's output is attached as input (Add Input -> your notebook -> Output), its results/*.json,
-#     *_best.pt and controller files are copied in first and NOT retrained (all seeds / eps found are evaluated).
-#   - Otherwise it trains only what is missing: dp_fixed and dp_adpmeta (v2, meta-trained, 10 episodes), seed 0, eps 8
-#     (~2-3 h on a T4). Same code and settings as the "final" stage; nothing is disabled.
-# Other stages stay available unchanged: "final", "v4_quick" / "v4_val" / "final_v4" (Option 2, rejected),
-# "v3_val" / "final_v3", "eps16", ...
-STAGE = "calib"
+# Default STAGE = "v3_quick" - ADP-Meta v3 (Block 17c, frozen design: joint budget pacing + adaptive clip, starts at
+# the fixed schedule, twin-baseline meta-training) vs fixed noise, SAME detector / FedProx / DP settings as the
+# Chapter 6 final stage (clip x0.5, false-alarm penalty 0.5, mu 0.01), seed 0, eps 8. Fits ONE ~5 h Kaggle session:
+# fixed noise first (~15 min), then meta-training on eps 8 only (up to 12 episodes, hard limit 180 min), then the frozen
+# greedy v3 run. Block 18d then calibrates both on VALIDATION only (no test use).
+# EXPLORATORY (one seed, one eps): a promising result justifies "v3_val"/"final_v3" (3 paired seeds); it does not
+# replace them. Pre-registered rule (CHANGELOG): v3 >= fixed + 2 val macro-F1 with FAR <= 10%.
+# Other stages stay available unchanged: "calib", "final", "v3_val" / "final_v3", "v4_quick" / "v4_val" (rejected), ...
+STAGE = "v3_quick"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -44,7 +43,9 @@ V3_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip", ADP_META_EPISODES=24)      # AD
 V4_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip_rank", ADP_META_EPISODES=24) # ADP-Meta v4 (Block 17d, Option 2)
 V4_PRIVATE = lambda eps_list: [(m, e) for e in eps_list for m in ("dp_fixed", "dp_fixed_proj", "dp_adpmeta")]
 V4Q_CFG = V4_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META_TIME_LIMIT_MIN=150)
+V3Q_CFG = V3_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META_TIME_LIMIT_MIN=180)
 STAGES = {
+    "v3_quick": [("v3q", V3Q_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "calib": [("final", FINAL_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "v4_quick": [("v4q", V4Q_CFG, [0], V4_PRIVATE([8.0]))],
     "v4_val": [("v4", V4_CFG, [0], V4_PRIVATE([8.0, 1.0]))],

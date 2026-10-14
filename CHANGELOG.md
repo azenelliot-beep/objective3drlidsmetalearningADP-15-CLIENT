@@ -282,3 +282,10 @@ breakdown sums to 100%, calib stage trains only missing runs with the frozen fin
 Calibration (tau for val FAR <= 10%): fixed noise test DR 79.2 -> 84.2, macro-F1 49.6 -> 50.6 (cross-fit val predicted
 84.3 DR). ADP-Meta v2: DR 73.3 -> 74.5, macro-F1 46.2 -> 44.8 - no benefit; its gap is a password-class collapse
 (85% of password rows called normal, unmoved by the threshold). backdoor -> scanning and mitm -> normal for both.
+
+## One-session stage "v3_quick" (default) - run the frozen ADP-Meta v3 design
+V3 design unchanged (joint pacing + clip, init at the fixed schedule, twin-baseline meta-training). Stage settings:
+seed 0, eps 8, META_EPS = (8,), up to 12 practice episodes, TWIN_POOL = 2, META_TIME_LIMIT_MIN = 180 (new optional
+guard in meta_train_controller_v3; None = old behaviour; the log records episodes_run). Same detector / FedProx / DP
+settings as the final stage (clip x0.5, FA penalty 0.5, mu 0.01). Block 18d now defaults to CALIB_TAG "v3q" with
+CALIB_TEST = False (validation-only calibration). Exploratory; the pre-registered 3-seed rule still decides.
