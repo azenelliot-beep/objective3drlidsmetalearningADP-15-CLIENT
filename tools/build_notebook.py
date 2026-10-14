@@ -20,7 +20,7 @@ REPLACE = {
 # The original FINAL Block 18 starts with a '# ====' banner, matched by this line instead
 REPLACE_BLOCK18_MARKER = "# BLOCK 18 (FINAL)"
 BLOCK18_FILES = ["block18a_experiment_defs.py", "block18b_run_experiments.py",
-                 "block18c_val_summary.py", "block19_final_test.py"]
+                 "block18c_val_summary.py", "block18d_calibration.py", "block19_final_test.py"]
 
 
 def code_cell(src):
@@ -60,6 +60,8 @@ def main():
         src = "".join(c["source"])
         if src.startswith("# BLOCK 18b "):
             src = re.sub(r'^STAGE = ".*"$', 'STAGE = "eps16"', src, flags=re.M)
+        elif src.startswith("# BLOCK 18d "):
+            src = re.sub(r'^CALIB_TEST = True ', 'CALIB_TEST = False', src, flags=re.M)
         elif src.startswith("# BLOCK 19 "):
             src = re.sub(r'^TEST_TAG = "\w*" ', 'TEST_TAG = "final"', src, flags=re.M)
         c["source"] = src.splitlines(keepends=True)

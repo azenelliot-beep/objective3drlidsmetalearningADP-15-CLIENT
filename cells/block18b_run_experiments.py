@@ -1,17 +1,14 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "v4_quick" - fits ONE Kaggle session of ~5 h (T4): ADP-Meta v4 (Option 2 - noise pacing + adaptive
-# clip + meta-learned PUBLIC-SUBSPACE rank, Block 17d) vs fixed noise (dp_fixed) and the fair baseline fixed noise +
-# fixed projection (dp_fixed_proj), seed 0, eps 8 only. Baselines run FIRST (results saved even if time runs out),
-# then meta-training (eps 8 only, up to 12 episodes, hard limit META_TIME_LIMIT_MIN = 150 min, checkpointed every
-# episode), then the ADP-Meta v4 run. EXPLORATORY: one seed, one eps - it can justify the 3-seed stage, not replace it.
-# "v4_val" (seed 0, eps 8 and 1, 24 episodes, ~13 h) and "final_v4" (3 seeds, eps 8/3/1) apply the pre-registered
-# rule: v4 >= dp_fixed_proj + 2 val macro-F1 with FAR <= 10%, then mean better AND better on >= 2 of 3 seeds.
-# Gains of dp_fixed_proj over dp_fixed are credited to the projection, not to meta-learning.
-# Any test numbers from v4 are a second, disclosed use of the test set (Chapter 6 v2 test results stay as reported).
-# Other stages stay available unchanged: "v3_val" / "final_v3" (ADP-Meta v3, frozen at cd74dad), "eps16", "final", ...
-# Other choice: STAGE = "eps16" -> one more point on the privacy-utility curve (weaker privacy, eps = 16):
-#   ADP-Meta v2 (frozen final settings, meta-trained for eps 16) vs fixed noise, seeds 0/1/2 (~1.5-2 h).
-STAGE = "v4_quick"
+# Default STAGE = "calib" - the thesis model with the ADP-Meta v2 FINAL settings (the version that passed validation
+# and has the Chapter 6 test results), then Block 18d adds (A) the weak-class confusion check and (B) detection-threshold
+# calibration. Fits ONE ~5 h Kaggle session:
+#   - If an earlier notebook's output is attached as input (Add Input -> your notebook -> Output), its results/*.json,
+#     *_best.pt and controller files are copied in first and NOT retrained (all seeds / eps found are evaluated).
+#   - Otherwise it trains only what is missing: dp_fixed and dp_adpmeta (v2, meta-trained, 10 episodes), seed 0, eps 8
+#     (~2-3 h on a T4). Same code and settings as the "final" stage; nothing is disabled.
+# Other stages stay available unchanged: "final", "v4_quick" / "v4_val" / "final_v4" (Option 2, rejected),
+# "v3_val" / "final_v3", "eps16", ...
+STAGE = "calib"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -48,6 +45,7 @@ V4_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip_rank", ADP_META_EPISODES=24) # AD
 V4_PRIVATE = lambda eps_list: [(m, e) for e in eps_list for m in ("dp_fixed", "dp_fixed_proj", "dp_adpmeta")]
 V4Q_CFG = V4_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META_TIME_LIMIT_MIN=150)
 STAGES = {
+    "calib": [("final", FINAL_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "v4_quick": [("v4q", V4Q_CFG, [0], V4_PRIVATE([8.0]))],
     "v4_val": [("v4", V4_CFG, [0], V4_PRIVATE([8.0, 1.0]))],
     "final_v4": [("v4", V4_CFG, [0, 1, 2], [("fedavg_np", None), ("fedprox_np", None)] + V4_PRIVATE([8.0, 3.0, 1.0]))],
@@ -73,8 +71,30 @@ STAGES = {
     "ch5_reference": [("ch5", {}, [0, 1, 2], [("fedavg_ch5", None), ("fedprox_ch5", None)])],
 }
 
+def import_previous_results(dst):
+    """Copy results (*.json, *.pt) from an attached earlier notebook output into dst (never overwrites)."""
+    import glob, shutil
+    os.makedirs(dst, exist_ok=True)
+    n = 0
+    for src in glob.glob("/kaggle/input/**/results/*", recursive=True):
+        fn = os.path.basename(src)
+        if fn.endswith((".json", ".pt")) and not fn.endswith("_ckpt.pt") and not os.path.exists(os.path.join(dst, fn)):
+            shutil.copy(src, os.path.join(dst, fn)); n += 1
+    print(f"Imported {n} result files from earlier notebook outputs into {dst}")
+
+if STAGE == "calib":
+    import_previous_results(_DEFAULT_CFG["RESULTS_DIR"])
+
 for tag, over, seeds, exps in STAGES[STAGE]:
     CFG.clear(); CFG.update(_DEFAULT_CFG); CFG.update(over); CFG["TAG"] = tag
     print(f"\n##### Stage {STAGE} | variant '{tag or 'baseline'}' | changes: {over or 'none'}")
-    run_all(exps, seeds)
+    if STAGE == "calib":                       # frozen final runs: an existing (imported) result is used as it is
+        for seed in seeds:
+            for exp in exps:
+                if os.path.exists(result_path(run_name(*exp), seed)):
+                    print(f">>> USE existing {run_name(*exp)} seed {seed}")
+                else:
+                    run_all([exp], [seed])
+    else:
+        run_all(exps, seeds)
 CFG.clear(); CFG.update(_DEFAULT_CFG)

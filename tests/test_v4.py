@@ -202,7 +202,7 @@ def test_v3_and_v2_paths_untouched_by_v4(nb, small_cfg):
 # ---------------- stages, summaries, static checks ----------------
 def test_v4_stages(nb, monkeypatch):
     src = next(s for s in notebook_cells() if s.startswith("# BLOCK 18b "))
-    assert 'STAGE = "v4_quick"' in src
+    assert '"v4_quick"' in src                            # v4 stages stay available (default is "calib")
     saved = dict(nb["CFG"])
     def run(name):
         calls = []

@@ -265,3 +265,15 @@ pre-registered rule; a positive result justifies "v4_val"/"final_v4", it does no
 Validation, seed 0, eps 8: dp_fixed 49.01 | dp_fixed_proj 38.38 | ADP-Meta v4 23.23 macro-F1. The pre-registered rule
 is not met (v4 - dp_fixed_proj = -15.1). Projection without the residual gradient loses rare-class signal. No further
 v4 tuning (it would be tuning on the outcome); final_v4 and the v4 test evaluation are not run.
+
+## Block 18d - weak-class confusion check + detection-threshold calibration (evaluation only); default STAGE "calib"
+- STAGE "calib" (default): ADP-Meta v2 FINAL settings (tag "final"). Results from an attached earlier notebook output
+  are imported and used as they are; only missing runs are trained (dp_fixed + dp_adpmeta, seed 0, eps 8, ~2-3 h).
+- Block 18d (A): where the validation rows of backdoor / mitm / ransomware (and any class with F1 < 30%) go:
+  correct, "normal" (threshold problem) or another attack (representation problem).
+- Block 18d (B): calibrated rule on the same Q-values: "normal" iff Q_normal - max attack Q >= tau, tau = largest value
+  with validation FAR <= 10% (the model-selection cap). tau = 0 reproduces argmax. Honest validation estimate by 2-fold
+  cross-fit on the fixed validation halves. CALIB_TEST = True scores test once with the validation tau: a second,
+  disclosed, evaluation-only use of the test set. Nothing is trained; epsilon is unchanged (post-processing).
+Tests: tests/test_calib.py (tau = 0 equals argmax, FAR cap respected, saved results untouched, epsilon unchanged,
+breakdown sums to 100%, calib stage trains only missing runs with the frozen final settings).
