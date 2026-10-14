@@ -277,3 +277,8 @@ v4 tuning (it would be tuning on the outcome); final_v4 and the v4 test evaluati
   disclosed, evaluation-only use of the test set. Nothing is trained; epsilon is unchanged (post-processing).
 Tests: tests/test_calib.py (tau = 0 equals argmax, FAR cap respected, saved results untouched, epsilon unchanged,
 breakdown sums to 100%, calib stage trains only missing runs with the frozen final settings).
+
+## Block 18d results, seed 0, eps 8 (results/calib_seed0_eps8_results.md)
+Calibration (tau for val FAR <= 10%): fixed noise test DR 79.2 -> 84.2, macro-F1 49.6 -> 50.6 (cross-fit val predicted
+84.3 DR). ADP-Meta v2: DR 73.3 -> 74.5, macro-F1 46.2 -> 44.8 - no benefit; its gap is a password-class collapse
+(85% of password rows called normal, unmoved by the threshold). backdoor -> scanning and mitm -> normal for both.
