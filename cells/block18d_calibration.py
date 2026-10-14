@@ -68,11 +68,13 @@ def run_calibration():
     rows, weak_rows, pcls = [], [], []
     if not os.path.isdir(CFG["RESULTS_DIR"]):
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-    files = sorted(f for f in os.listdir(CFG["RESULTS_DIR"]) if f.endswith(".json") and "__seed" in f
-                   and f.split("__seed")[0].endswith(f"__{CALIB_TAG}") and not f.endswith("_TEST.json"))
+    files = sorted(f for f in os.listdir(CFG["RESULTS_DIR"])
+                   if is_run_file(f) and f.split("__seed")[0].endswith(f"__{CALIB_TAG}"))
     for fn in files:
         with open(os.path.join(CFG["RESULTS_DIR"], fn)) as f:
             r = json.load(f)
+        if "arch" not in r:
+            print(f"skip {fn}: not a run result"); continue
         pt = result_path(r["run"], r["seed"], "_best.pt")
         if not os.path.exists(pt):
             print(f"skip {r['run']} seed {r['seed']}: {pt} missing"); continue

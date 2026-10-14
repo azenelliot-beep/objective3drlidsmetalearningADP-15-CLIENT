@@ -9,7 +9,7 @@ if not FINAL_TEST:
 else:
     rows = []
     for fn in sorted(os.listdir(CFG["RESULTS_DIR"])):
-        if not (fn.endswith(".json") and "__seed" in fn) or fn.endswith("_TEST.json"):
+        if not is_run_file(fn):
             continue
         if TEST_TAG and not fn.split("__seed")[0].endswith(f"__{TEST_TAG}"):
             continue

@@ -153,6 +153,11 @@ def run_name(method, eps_budget=None):
 def cfg_json():
     return {k: (list(v) if isinstance(v, tuple) else v) for k, v in CFG.items()}
 
+def is_run_file(fn):
+    """True only for a run's own result file '<run>__seed<k>.json' (not _TEST / _CALIB / meta logs / CSVs)."""
+    import re
+    return re.fullmatch(r".+__seed\d+\.json", fn) is not None
+
 def result_path(name, seed, suffix=".json"):
     return os.path.join(CFG["RESULTS_DIR"], f"{name}__seed{seed}{suffix}")
 
@@ -380,9 +385,11 @@ def summarize_val(results_dir=None):
     rows = []
     d = results_dir or CFG["RESULTS_DIR"]
     for fn in sorted(os.listdir(d)) if os.path.isdir(d) else []:
-        if fn.endswith(".json") and "__seed" in fn and not fn.endswith("_TEST.json"):
+        if is_run_file(fn):
             with open(os.path.join(d, fn)) as f:
                 r = json.load(f)
+            if "val_at_best" not in r:                    # not a finished run result (e.g. a foreign file)
+                print(f"summarize_val: skipping {fn} (no val_at_best)"); continue
             v = r["val_at_best"]
             rows.append({"run": r["run"], "seed": r["seed"], "best_round": r["best_round"], "cap_met": r["cap_met"],
                          "Acc": 100 * v["Accuracy"], "MacroF1": 100 * v["Macro_F1"], "FAR": 100 * v["FAR"],

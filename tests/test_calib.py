@@ -73,3 +73,20 @@ def test_calib_stage_uses_existing_results_and_trains_only_missing(nb, small_cfg
 def test_block18d_trains_nothing():
     src = block("# BLOCK 18d ")
     assert not re.search(r"\b(run_all|run_dp_pipeline|fit_clients|optimizer|\.step\(|backward)\b", src)
+
+
+def test_summary_and_test_cells_ignore_non_run_json(nb, small_cfg, tmp_path, monkeypatch):
+    """Regression: _CALIB.json / foreign JSON files in results/ crashed Block 18c with KeyError 'val_at_best'."""
+    small_cfg.update(TAG="final")
+    nb["run_all"]([("dp_fixed", 2.0)], [0])
+    d = small_cfg["RESULTS_DIR"]
+    json.dump({"run": "dp_fixed_eps2__final", "seed": 0, "tau": 0.1}, open(os.path.join(d, "dp_fixed_eps2__final__seed0_CALIB.json"), "w"))
+    json.dump({"hello": 1}, open(os.path.join(d, "other__seed0_meta.json"), "w"))
+    vdf = nb["summarize_val"]()
+    assert list(vdf["run"]) == ["dp_fixed_eps2__final"]
+    monkeypatch.chdir(tmp_path)
+    exec(block("# BLOCK 18c "), nb)
+    exec(block("# BLOCK 18d "), nb)
+    assert list(nb["cal_df"]["run"]) == ["dp_fixed_eps2__final"]
+    exec(block("# BLOCK 19 ").replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "v4"', 'TEST_TAG = "final"'), nb)
+    assert list(nb["tdf"]["run"]) == ["dp_fixed_eps2__final"]
