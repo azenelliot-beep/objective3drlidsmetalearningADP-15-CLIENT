@@ -289,3 +289,7 @@ seed 0, eps 8, META_EPS = (8,), up to 12 practice episodes, TWIN_POOL = 2, META_
 guard in meta_train_controller_v3; None = old behaviour; the log records episodes_run). Same detector / FedProx / DP
 settings as the final stage (clip x0.5, FA penalty 0.5, mu 0.01). Block 18d now defaults to CALIB_TAG "v3q" with
 CALIB_TEST = False (validation-only calibration). Exploratory; the pre-registered 3-seed rule still decides.
+
+## v3_quick result - ADP-Meta v3 does not beat fixed noise (results/v3_quick_val_results.md)
+Validation, seed 0, eps 8: fixed 49.01 | v3 43.05 macro-F1 (-5.96). Rule not met; final_v3 not run. All three ADP-Meta
+designs tested at eps 8 (v2 final, v3, v4) are below tuned fixed noise.
