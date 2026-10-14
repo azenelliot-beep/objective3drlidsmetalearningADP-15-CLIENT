@@ -13,3 +13,10 @@ mitm 1.5 vs 1.5 | normal 89.0 vs 90.4 | password 18.3 vs 36.2 | ransomware 0 vs 
 Paired (seed 0): v3 - fixed = -5.96 macro-F1. Pre-registered rule (>= +2) NOT met; final_v3 not run.
 Note: v3 partly avoids v2's password collapse (18.3 vs v2 0.0) but loses backdoor entirely (0 vs 33.8).
 Fixed noise reproduces 49.01 exactly again (pipeline deterministic).
+
+## Block 18d (validation only)
+Calibration (2-fold cross-fit, FAR <= 10%): v3 DR 76.78 -> 81.06, macro-F1 43.05 -> 44.77 | fixed DR 79.14 -> 84.26,
+macro-F1 49.01 -> 50.25. Calibrated gap v3 - fixed = -5.48 macro-F1 (rule still not met).
+Weak classes (v3): backdoor 0% correct, 97% -> other attacks (scanning 68%, dos 22%) - not a threshold problem;
+password 10% correct / 72% -> normal, calibrated 24% / 53% (unlike v2, calibration partly recovers password);
+mitm 86% -> normal and ransomware 45% normal / 55% dos, as for fixed noise.
