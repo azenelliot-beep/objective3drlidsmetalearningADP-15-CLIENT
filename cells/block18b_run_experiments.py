@@ -1,13 +1,13 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "v3_quick" - ADP-Meta v3 (Block 17c, frozen design: joint budget pacing + adaptive clip, starts at
-# the fixed schedule, twin-baseline meta-training) vs fixed noise, SAME detector / FedProx / DP settings as the
-# Chapter 6 final stage (clip x0.5, false-alarm penalty 0.5, mu 0.01), seed 0, eps 8. Fits ONE ~5 h Kaggle session:
-# fixed noise first (~15 min), then meta-training on eps 8 only (up to 12 episodes, hard limit 180 min), then the frozen
-# greedy v3 run. Block 18d then calibrates both on VALIDATION only (no test use).
-# EXPLORATORY (one seed, one eps): a promising result justifies "v3_val"/"final_v3" (3 paired seeds); it does not
-# replace them. Pre-registered rule (CHANGELOG): v3 >= fixed + 2 val macro-F1 with FAR <= 10%.
-# Other stages stay available unchanged: "calib", "final", "v3_val" / "final_v3", "v4_quick" / "v4_val" (rejected), ...
-STAGE = "v3_quick"
+# Default STAGE = "drift_quick" - the EMERGING-ATTACK (drift) scenario, Block 17e: attack families arrive in waves
+# (DRIFT_WAVES), so some rounds genuinely need more privacy budget than others. Fixed noise vs drift-aware ADP-Meta v5
+# (v3 controller + drift signals), SAME detector / FedProx / DP settings as the Chapter 6 final stage, seed 0, eps 8.
+# Fits ONE ~5 h Kaggle session: fixed noise (~15 min), meta-training (eps 8, up to 12 episodes, hard limit 180 min),
+# then the frozen greedy v5 run. Block 18d then calibrates both on VALIDATION only (no test use).
+# EXPLORATORY (one seed): a promising result justifies 3 paired seeds ("drift_val"). Pre-registered rule:
+# v5 >= fixed + 2 val macro-F1 with FAR <= 10%. The static-data results (Chapter 6 final) stay as reported.
+# Other stages stay available unchanged: "v3_quick", "calib", "final", "v3_val", "v4_quick" (rejected), ...
+STAGE = "drift_quick"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -44,7 +44,11 @@ V4_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip_rank", ADP_META_EPISODES=24) # AD
 V4_PRIVATE = lambda eps_list: [(m, e) for e in eps_list for m in ("dp_fixed", "dp_fixed_proj", "dp_adpmeta")]
 V4Q_CFG = V4_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META_TIME_LIMIT_MIN=150)
 V3Q_CFG = V3_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META_TIME_LIMIT_MIN=180)
+DRIFT_CFG = V3_CFG | dict(DRIFT=True, ADP_ACTIONS="drift", META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2,
+                          META_TIME_LIMIT_MIN=180)
 STAGES = {
+    "drift_quick": [("drq", DRIFT_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
+    "drift_val": [("drq", DRIFT_CFG, [0, 1, 2], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "v3_quick": [("v3q", V3Q_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "calib": [("final", FINAL_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "v4_quick": [("v4q", V4Q_CFG, [0], V4_PRIVATE([8.0]))],

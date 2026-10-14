@@ -14,6 +14,9 @@
 #     k-dim space and the result is mapped back with V. Sensitivity is still C and V does not depend on private
 #     data, so the RDP accounting is unchanged; the noise norm drops from ~sigma*C*sqrt(d) to sigma*C*sqrt(k).
 #   - client.basis = None (default) -> exactly the full-space DP-SGD step above (code path unchanged).
+# v5 (drift scenario, Block 17e; default OFF): client.active = bool mask over local records. Records not yet "arrived"
+#   are never used (Poisson-sampled with rate q, then dropped), so the per-record sampling rate is still <= q and the
+#   RDP accounting is unchanged. client.active = None (default) = every record active (code path unchanged).
 import copy
 import math
 import torch.nn.functional as F
@@ -78,6 +81,7 @@ class DPClient:
         self.nonprivate_steps = 0                          # steps taken with sigma = 0 (no privacy claim possible)
         self.mu, self.global_params = 0.0, None
         self.basis = None                                  # v4: public-subspace basis V (d x k) or None = full space
+        self.active = None                                 # v5: bool mask of records that have arrived; None = all
 
     def epsilon_spent(self):
         if self.nonprivate_steps:
@@ -100,7 +104,10 @@ class DPClient:
             self.nonprivate_steps += 1
 
         net = self.ddqn.online_net
-        idx = (torch.rand(self.n, device=self.device) < self.q).nonzero().squeeze(1)
+        take = torch.rand(self.n, device=self.device) < self.q
+        if self.active is not None:                      # v5: not-yet-arrived records are never used
+            take = take & self.active
+        idx = take.nonzero().squeeze(1)
         params  = {k: v.detach() for k, v in net.named_parameters()}
         buffers = {k: v.detach() for k, v in net.named_buffers()}
 

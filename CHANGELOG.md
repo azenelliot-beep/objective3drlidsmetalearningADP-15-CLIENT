@@ -293,3 +293,19 @@ CALIB_TEST = False (validation-only calibration). Exploratory; the pre-registere
 ## v3_quick result - ADP-Meta v3 does not beat fixed noise (results/v3_quick_val_results.md)
 Validation, seed 0, eps 8: fixed 49.01 | v3 43.05 macro-F1 (-5.96). Rule not met; final_v3 not run. All three ADP-Meta
 designs tested at eps 8 (v2 final, v3, v4) are below tuned fixed noise.
+
+## Drift scenario + drift-aware ADP-Meta v5 (Block 17e); default STAGE "drift_quick"
+Why: in the static setting every round sees the same data mix, so an even noise schedule is near optimal - consistent
+with v2/v3/v4 all losing to tuned fixed noise. Adaptive DP can only win when rounds genuinely differ.
+What:
+- Emerging-attack scenario (SIMULATED, disclose): attack families arrive in waves (DRIFT_WAVES, default
+  r1 normal+scanning, r5 dos+ddos, r9 injection+xss+password, r13 backdoor+ransomware+mitm). Records that have not
+  arrived are never used (client.active masks in Blocks 16/16b): per-record sampling rate stays <= q, so the RDP
+  accounting is unchanged (tested). Validation and model selection always cover all classes. The real capture order
+  cannot be used (timestamps removed as a leak, rows de-duplicated).
+- ADP-Meta v5 = v3 controller (pacing k + clip m, starts at the fixed schedule, twin-baseline meta-training in the
+  same scenario) + three privacy-free drift signals: unlearned attack share, largest per-class F1 rise, update-norm spike.
+- Fixed-noise baseline runs in the same scenario (k = 1, m = 1 == constant sigma).
+Pre-registered rule (before any drift run): "drift_quick" (seed 0, eps 8) v5 >= fixed + 2 val macro-F1 with
+FAR <= 10%; then "drift_val" (3 seeds): mean better AND better on >= 2 of 3 seeds. The static Chapter 6 results stand.
+Tests: tests/test_drift.py.

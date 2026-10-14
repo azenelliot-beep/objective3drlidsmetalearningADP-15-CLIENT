@@ -47,6 +47,9 @@ CFG = dict(
     PROJ_RANK=64,                   # constant rank of the fair baseline dp_fixed_proj (and the v4 twin / init bias)
     PROJ_ANCHORS=512,               # class-balanced public rows (validation half A) per round for the basis
     META_TIME_LIMIT_MIN=None,       # v4: stop meta-training before an episode that would end past this (None = off)
+    # v5 drift scenario (Block 17e): attack families arrive in waves; dp_fixed / dp_adpmeta run in that scenario
+    DRIFT=False,
+    DRIFT_WAVES="1:normal,scanning;5:dos,ddos;9:injection,xss,password;13:backdoor,ransomware,mitm",
 )
 _DEFAULT_CFG = dict(CFG)               # Block 18b resets CFG to these defaults before applying a stage
 
@@ -218,6 +221,10 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
     else:
         base = [0.0] * len(clients)
     fast = make_fast(clients)
+    if CFG.get("DRIFT"):                                           # v5 drift scenario (Block 17e)
+        assert method in ("dp_fixed", "dp_adpmeta"), f"{method} is not defined for the drift scenario"
+        return _run_drift(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast,
+                          adaptive=(method == "dp_adpmeta"))
     if method == "dp_fixed_proj":                                  # fair baseline for ADP-Meta v4 (Block 17d)
         return _run_v4(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast, adaptive=False)
     if adaptive and CFG["ADP_ACTIONS"] == "pacing_clip_rank":      # ADP-Meta v4 (Block 17d)

@@ -15,7 +15,7 @@ REPLACE = {
     "# BLOCK 4 ": ["block4_load_data.py"],                                       # find the CSV under /kaggle/input
     "# BLOCK 16 ": ["block16_dp_client.py", "block16b_fast_federation.py"],
     "# BLOCK 17 ": [KEEP, "block17b_adpmeta_v2.py", "block17c_adpmeta_v3.py",
-                    "block17d_adpmeta_v4.py"],          # keep Block 17 (v1 controller), add 17b after it
+                    "block17d_adpmeta_v4.py", "block17e_drift_adpmeta_v5.py"],          # keep Block 17 (v1 controller), add 17b after it
 }
 # The original FINAL Block 18 starts with a '# ====' banner, matched by this line instead
 REPLACE_BLOCK18_MARKER = "# BLOCK 18 (FINAL)"

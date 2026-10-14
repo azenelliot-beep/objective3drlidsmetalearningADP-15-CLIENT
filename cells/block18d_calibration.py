@@ -13,7 +13,7 @@
 #     half B and vice versa). The original argmax numbers are always reported next to the calibrated ones.
 #     CALIB_TEST = True scores the test set ONCE with the validation tau (a second, disclosed, evaluation-only use of
 #     the test set; nothing is retrained or re-selected from it).
-CALIB_TAG = "v3q"                   # runs of this stage tag are evaluated ("final" = ADP-Meta v2 final runs)
+CALIB_TAG = "drq"                   # runs of this stage tag are evaluated ("final" = v2 final, "v3q" = v3 quick)
 CALIB_TEST = False                  # True = disclosed, evaluation-only second use of the test set (see header)
 WEAK = ["backdoor", "mitm", "ransomware"]
 N_IDX = class_names.index("normal")

@@ -100,7 +100,8 @@ def test_summary_and_test_cells_ignore_non_run_json(nb, small_cfg, tmp_path, mon
 
 def test_default_is_v3_quick_with_frozen_v3_design(nb, monkeypatch):
     src = block("# BLOCK 18b ")
-    assert 'STAGE = "v3_quick"' in src
+    assert '"v3_quick"' in src
+    src = re.sub(r'^STAGE = ".*"$', 'STAGE = "v3_quick"', src, flags=re.M)
     saved = dict(nb["CFG"]); calls = []
     monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
     try:
@@ -113,7 +114,7 @@ def test_default_is_v3_quick_with_frozen_v3_design(nb, monkeypatch):
     assert cfg["CLIP_ACTIONS"] == (0.5, 1.0, 2.0) and cfg["META_TIME_LIMIT_MIN"] == 180
     assert exps == [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)] and seeds == [0]
     b18d = block("# BLOCK 18d ")
-    assert 'CALIB_TAG = "v3q"' in b18d and "CALIB_TEST = False" in b18d
+    assert 'CALIB_TAG = "drq"' in b18d and "CALIB_TEST = False" in b18d
 
 
 def test_v3_meta_time_limit(nb, small_cfg):

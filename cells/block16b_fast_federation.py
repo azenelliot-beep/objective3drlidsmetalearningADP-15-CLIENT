@@ -7,6 +7,7 @@
 # Privacy accounting stays in each client's own RDP accountant (DPClient), step by step as before.
 # Needs every client to train every round (CLIENT_FRAC = 1.0, the thesis setting); otherwise the per-client loop runs.
 # v4: fast.basis = V (public subspace, Block 17d) -> the same projected clip + k-space noise as DPClient; None = unchanged.
+# v5: per-client 'active' masks (drift scenario, Block 17e) are read from the clients at every fit(); None = all rows.
 from torch.func import stack_module_state
 
 
@@ -44,6 +45,7 @@ class FastFederation:
         self._g = vmap(vmap(grad(loss_one), in_dims=(None, None, 0, 0, 0)), in_dims=(0, 0, 0, 0, 0))
         self.last_grad = None
         self.basis = None                                   # v4: public-subspace basis V (d x k) or None = full space
+        self.active_rows = None                             # v5: [K, nmax] bool mask of arrived records or None
 
     def _epsilon(self):
         a = self.ag
@@ -52,6 +54,8 @@ class FastFederation:
     def _step(self, sigma, mu, gp):
         K, dev = self.K, self.dev
         take = (torch.rand(self.row_ok.shape, device=dev) < self.q[:, None]) & self.row_ok   # Poisson, per client
+        if self.active_rows is not None:                    # v5: not-yet-arrived records are never used
+            take = take & self.active_rows
         cnt = take.sum(1)
         B = int(cnt.max())
         if B > 0:
@@ -110,6 +114,12 @@ class FastFederation:
         if bool((sig > 0).any()):
             assert self.C is not None, "DP guard: noise without clipping has unbounded sensitivity"
         gp = {k: t.to(self.dev) for k, t in zip(self.names, gp_list)}
+        if any(c.active is not None for c in self.clients):          # v5: refresh arrival masks for this round
+            self.active_rows = torch.zeros_like(self.row_ok)
+            for k, c in enumerate(self.clients):
+                self.active_rows[k, :c.n] = True if c.active is None else c.active
+        else:
+            self.active_rows = None
         with torch.no_grad():
             for k in self.names:
                 self.params[k].copy_(gp[k].unsqueeze(0).expand_as(self.params[k]))
