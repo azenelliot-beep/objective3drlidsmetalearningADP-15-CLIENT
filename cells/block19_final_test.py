@@ -15,6 +15,7 @@ else:
             continue
         with open(os.path.join(CFG["RESULTS_DIR"], fn)) as f:
             r = json.load(f)
+        scenario_from_cfg(r.get("cfg", {}))          # the run's own data setting (Block 17f)
         agent = ARCH[r["arch"]](input_dim, action_dim, device, class_weights_dp)
         agent.set_fl_parameters(torch.load(result_path(r["run"], r["seed"], "_best.pt")))
         t = eval_metrics(agent, test_dataset)
@@ -25,6 +26,7 @@ else:
                      "Acc": 100 * t["Accuracy"], "MacroF1": 100 * t["Macro_F1"], "WeightedF1": 100 * t["Weighted_F1"],
                      "FAR": 100 * t["FAR"], "DR": 100 * t["DR"],
                      **{f"F1_{k}": 100 * x for k, x in t["F1_per_class"].items()}})
+    apply_scenario()
     tdf = pd.DataFrame(rows)
     tdf["eps"] = pd.to_numeric(tdf["eps"])                        # None (non-private) -> NaN
     tdf.to_csv(os.path.join(CFG["RESULTS_DIR"], "test_all_runs.csv"), index=False)

@@ -176,6 +176,7 @@ def _practice_episode_v4(ep_seed, eps_budget, C, policy, XA, yA, val_B, q_real, 
     w = reward_weights()
     mk = lambda: SmallDDQN(input_dim, action_dim, device, w, gamma=0.0, lr=CFG["LR"])
     g = mk()
+    maybe_public_init(g, SPLIT_SEED)                               # Block 17f: no-op unless PUBLIC_FRAC > 0
     proxies = [DPClient(mk(), XA[ci], yA[ci], device, model_name=f"Proxy{k+1}", batch_size=CFG["BATCH"],
                         clip_norm=C, delta=CFG["DELTA"]) for k, ci in enumerate(parts)]
     R, STEPS = CFG["ROUNDS"], CFG["LOCAL_STEPS"]

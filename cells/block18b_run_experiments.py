@@ -1,13 +1,11 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "drift_quick" - the EMERGING-ATTACK (drift) scenario, Block 17e: attack families arrive in waves
-# (DRIFT_WAVES), so some rounds genuinely need more privacy budget than others. Fixed noise vs drift-aware ADP-Meta v5
-# (v3 controller + drift signals), SAME detector / FedProx / DP settings as the Chapter 6 final stage, seed 0, eps 8.
-# Fits ONE ~5 h Kaggle session: fixed noise (~15 min), meta-training (eps 8, up to 12 episodes, hard limit 180 min),
-# then the frozen greedy v5 run. Block 18d then calibrates both on VALIDATION only (no test use).
-# EXPLORATORY (one seed): a promising result justifies 3 paired seeds ("drift_val"). Pre-registered rule:
-# v5 >= fixed + 2 val macro-F1 with FAR <= 10%. The static-data results (Chapter 6 final) stay as reported.
-# Other stages stay available unchanged: "v3_quick", "calib", "final", "v3_val", "v4_quick" (rejected), ...
-STAGE = "drift_quick"
+# Default STAGE = "boost" (Block 17f): same four pillars (DDQN, FedProx, record-level local DP + RDP accounting,
+# ADP-Meta v2 with meta-training) and the Chapter 6 FINAL settings, plus: 5 larger clients instead of 15 and a 5%
+# PUBLIC slice of the training data used once, without DP, to pre-train the DDQN (disclose: that slice is unprotected).
+# Run twice: 10-class task (tag "bst10") and binary attack/normal task (tag "bstbin", reported ALONGSIDE the 10-class
+# results). Fixed noise vs ADP-Meta, seed 0, eps 8 (~2-3 h on a T4). Block 18d then calibrates them (validation only).
+# Other stages stay available unchanged: "drift_quick", "v3_quick", "calib", "final", "v3_val", "v4_quick", ...
+STAGE = "boost"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -46,7 +44,12 @@ V4Q_CFG = V4_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META
 V3Q_CFG = V3_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META_TIME_LIMIT_MIN=180)
 DRIFT_CFG = V3_CFG | dict(DRIFT=True, ADP_ACTIONS="drift", META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2,
                           META_TIME_LIMIT_MIN=180)
+BOOST = dict(NUM_CLIENTS_DP=5, PUBLIC_FRAC=0.05)
 STAGES = {
+    "boost": [("bst10", FINAL_CFG | BOOST, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)]),
+              ("bstbin", FINAL_CFG | BOOST | dict(BINARY=True), [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
+    "boost3": [("bst10", FINAL_CFG | BOOST, [0, 1, 2], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)]),
+               ("bstbin", FINAL_CFG | BOOST | dict(BINARY=True), [0, 1, 2], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "drift_quick": [("drq", DRIFT_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "drift_val": [("drq", DRIFT_CFG, [0, 1, 2], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "v3_quick": [("v3q", V3Q_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
@@ -92,6 +95,7 @@ if STAGE == "calib":
 
 for tag, over, seeds, exps in STAGES[STAGE]:
     CFG.clear(); CFG.update(_DEFAULT_CFG); CFG.update(over); CFG["TAG"] = tag
+    scenario_from_cfg(CFG)                     # Block 17f: data for this variant (default = Chapter 6 setting)
     print(f"\n##### Stage {STAGE} | variant '{tag or 'baseline'}' | changes: {over or 'none'}")
     if STAGE == "calib":                       # frozen final runs: an existing (imported) result is used as it is
         for seed in seeds:
@@ -103,3 +107,4 @@ for tag, over, seeds, exps in STAGES[STAGE]:
     else:
         run_all(exps, seeds)
 CFG.clear(); CFG.update(_DEFAULT_CFG)
+apply_scenario()                               # restore the Chapter 6 data for the cells below

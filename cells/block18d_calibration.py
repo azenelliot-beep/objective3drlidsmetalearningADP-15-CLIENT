@@ -13,10 +13,10 @@
 #     half B and vice versa). The original argmax numbers are always reported next to the calibrated ones.
 #     CALIB_TEST = True scores the test set ONCE with the validation tau (a second, disclosed, evaluation-only use of
 #     the test set; nothing is retrained or re-selected from it).
-CALIB_TAG = "drq"                   # runs of this stage tag are evaluated ("final" = v2 final, "v3q" = v3 quick)
+CALIB_TAG = "bst10,bstbin"         # comma-separated stage tags to evaluate ("final", "v3q", "drq", ...)
 CALIB_TEST = False                  # True = disclosed, evaluation-only second use of the test set (see header)
 WEAK = ["backdoor", "mitm", "ransomware"]
-N_IDX = class_names.index("normal")
+N_IDX = class_names.index("normal")            # re-set per run below (binary runs have 2 classes)
 
 
 @torch.no_grad()
@@ -64,17 +64,21 @@ def row_breakdown(cm, cls):
 
 
 def run_calibration():
-    ia, ib = val_halves()
+    global N_IDX
     rows, weak_rows, pcls = [], [], []
     if not os.path.isdir(CFG["RESULTS_DIR"]):
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    tags = [t.strip() for t in CALIB_TAG.split(",") if t.strip()]
     files = sorted(f for f in os.listdir(CFG["RESULTS_DIR"])
-                   if is_run_file(f) and f.split("__seed")[0].endswith(f"__{CALIB_TAG}"))
+                   if is_run_file(f) and any(f.split("__seed")[0].endswith(f"__{t}") for t in tags))
     for fn in files:
         with open(os.path.join(CFG["RESULTS_DIR"], fn)) as f:
             r = json.load(f)
         if "arch" not in r:
             print(f"skip {fn}: not a run result"); continue
+        scenario_from_cfg(r.get("cfg", {}))        # the run's own data setting (binary / clients / public slice)
+        N_IDX = class_names.index("normal")
+        ia, ib = val_halves()
         pt = result_path(r["run"], r["seed"], "_best.pt")
         if not os.path.exists(pt):
             print(f"skip {r['run']} seed {r['seed']}: {pt} missing"); continue
@@ -91,8 +95,8 @@ def run_calibration():
         row = {"run": r["run"], "seed": r["seed"], "tau": tau}
         for k, m in (("val_argmax", orig_val), ("val_calib_crossfit", cf_val)):
             row.update({f"{k}_{x}": 100 * m[x] for x in ("DR", "FAR", "Macro_F1", "Accuracy")})
-        for cls in WEAK + [c for c in class_names if c not in WEAK and c != "normal"
-                           and orig_val["F1_per_class"][c] < 0.30]:
+        for cls in [c for c in WEAK if c in class_names] + [c for c in class_names if c not in WEAK and c != "normal"
+                                                            and orig_val["F1_per_class"][c] < 0.30]:
             weak_rows.append({"run": r["run"], "seed": r["seed"], "rule": "argmax", **row_breakdown(orig_val["cm"], cls)})
             weak_rows.append({"run": r["run"], "seed": r["seed"], "rule": "calibrated (cross-fit)",
                               **row_breakdown(cf_val["cm"], cls)})
@@ -110,6 +114,8 @@ def run_calibration():
         rows.append(row)
         with open(result_path(r["run"], r["seed"], "_CALIB.json"), "w") as f:
             json.dump(out, f, indent=2, default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
+    apply_scenario()                               # back to the Chapter 6 data
+    N_IDX = class_names.index("normal")
     return pd.DataFrame(rows), pd.DataFrame(weak_rows), pd.DataFrame(pcls)
 
 

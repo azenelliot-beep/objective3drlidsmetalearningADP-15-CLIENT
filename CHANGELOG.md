@@ -309,3 +309,22 @@ What:
 Pre-registered rule (before any drift run): "drift_quick" (seed 0, eps 8) v5 >= fixed + 2 val macro-F1 with
 FAR <= 10%; then "drift_val" (3 seeds): mean better AND better on >= 2 of 3 seeds. The static Chapter 6 results stand.
 Tests: tests/test_drift.py.
+
+## Boost stage - binary task, 5 clients, 5% public pre-training (2026-10-15, code done, awaiting run)
+Files: `cells/block17f_boost_scenarios.py` (new), 17b-17e (practice episodes start from the same public model),
+18a (CFG keys `BINARY`, `NUM_CLIENTS_DP`, `PUBLIC_FRAC`, `PRETRAIN_STEPS`), 18b (stage `boost`, default; `boost3`
+= 3 seeds), 18d (`CALIB_TAG = "bst10,bstbin"`), 19 (scenario restored per run).
+
+What changes (pillars unchanged: DDQN detector, FedProx mu 0.01, record-level DP-SGD + RDP accountant, ADP-Meta):
+- **5 clients instead of 15** (Dirichlet alpha 2): more records per client, so less noise per record at the same epsilon.
+- **5% public slice:** a stratified 5% of the TRAINING records (seed 42) is removed from every client and used once,
+  without DP, to pre-train the DDQN (2,000 TD steps, gamma 0). Fixed noise and ADP-Meta both start from it.
+  **Disclose in the thesis:** these records get no privacy protection; the reported epsilon covers the remaining
+  95% private records. This differs from the earlier dropped warm-up, which would have used validation data.
+- **Binary task (attack vs normal)** is run and reported ALONGSIDE the 10-class task (`bstbin` vs `bst10`), never
+  instead of it.
+
+What this is not: both methods get the same lift, so this is not evidence that ADP-Meta beats fixed noise. The
+pre-registered rule (ADP >= fixed + 2 val macro-F1, FAR <= 10%) is unchanged and is applied per task.
+Tests: `tests/test_boost.py` (identity/restore, binary mapping, public/private disjoint, RNG not shifted,
+end-to-end budget, 18d on boost tags, stage config).

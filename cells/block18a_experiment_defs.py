@@ -50,6 +50,11 @@ CFG = dict(
     # v5 drift scenario (Block 17e): attack families arrive in waves; dp_fixed / dp_adpmeta run in that scenario
     DRIFT=False,
     DRIFT_WAVES="1:normal,scanning;5:dos,ddos;9:injection,xss,password;13:backdoor,ransomware,mitm",
+    # boost scenarios (Block 17f): defaults = the Chapter 6 setting
+    BINARY=False,                   # attack / normal instead of 10 classes
+    NUM_CLIENTS_DP=None,            # None = 15 clients
+    PUBLIC_FRAC=0.0,                # share of training records treated as public for non-private pre-training
+    PRETRAIN_STEPS=2000,
 )
 _DEFAULT_CFG = dict(CFG)               # Block 18b resets CFG to these defaults before applying a stage
 
@@ -147,6 +152,7 @@ def dp_clip_norm():
     """C = median per-sample grad norm at init on VALIDATION data. Fixed seed -> same C for every method and seed."""
     set_seed(SPLIT_SEED)
     ag = SmallDDQN(input_dim, action_dim, device, reward_weights(), gamma=0.0, lr=CFG["LR"])
+    maybe_public_init(ag, SPLIT_SEED)                              # C measured where training starts (Block 17f)
     return CFG["CLIP_MULT"] * float(np.median(per_sample_grad_norms(ag, X_val, y_val)))
 
 def run_name(method, eps_budget=None):
@@ -213,6 +219,7 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
     w = reward_weights()
     mk = lambda: SmallDDQN(input_dim, action_dim, device, w, gamma=0.0, lr=CFG["LR"])
     g = mk()
+    maybe_public_init(g, seed)                                     # Block 17f: no-op unless PUBLIC_FRAC > 0
     clients = [DPClient(mk(), X_dp[ci], y_dp[ci], device, model_name=f"Client{k+1}", batch_size=CFG["BATCH"],
                         clip_norm=(C if use_clip else None), delta=delta) for k, ci in enumerate(parts)]
     if private:

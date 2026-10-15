@@ -122,7 +122,8 @@ def test_drift_runs_fixed_and_v5(nb, small_cfg, monkeypatch):
 
 def test_drift_stage_default(nb, monkeypatch):
     src = next(s for s in notebook_cells() if s.startswith("# BLOCK 18b "))
-    assert 'STAGE = "drift_quick"' in src
+    assert '"drift_quick"' in src
+    src = re.sub(r'^STAGE = ".*"$', 'STAGE = "drift_quick"', src, flags=re.M)
     saved = dict(nb["CFG"]); calls = []
     monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), exps, seeds)))
     try:

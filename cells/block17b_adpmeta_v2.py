@@ -206,6 +206,7 @@ def meta_train_controller(eps_budget, C):
         parts = dirichlet_split(yA, NUM_CLIENTS, ALPHA, np.random.default_rng(es), CFG["PROXY_MIN_PER_CLIENT"])
         mk = lambda: SmallDDQN(input_dim, action_dim, device, reward_weights(), gamma=0.0, lr=CFG["LR"])
         g = mk()
+        maybe_public_init(g, SPLIT_SEED)                           # Block 17f: no-op unless PUBLIC_FRAC > 0
         proxies = [DPClient(mk(), XA[ci], yA[ci], device, model_name=f"Proxy{k+1}", batch_size=CFG["BATCH"],
                             clip_norm=C, delta=CFG["DELTA"]) for k, ci in enumerate(parts)]
         pacers = [RDPPacer(q_real[k], eps_budget, CFG["DELTA"], R, STEPS) for k in range(len(proxies))]

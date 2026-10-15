@@ -13,7 +13,7 @@ def block(prefix):
 
 def calib_src(tag="final", test=True):
     """Block 18d with the tag / test flag used by these tests (the notebook default is v3q, no test)."""
-    s = re.sub(r'^CALIB_TAG = "\w*"', f'CALIB_TAG = "{tag}"', block("# BLOCK 18d "), flags=re.M)
+    s = re.sub(r'^CALIB_TAG = "[\w,]*"', f'CALIB_TAG = "{tag}"', block("# BLOCK 18d "), flags=re.M)
     return re.sub(r'^CALIB_TEST = \w+', f'CALIB_TEST = {test}', s, flags=re.M)
 
 
@@ -114,7 +114,7 @@ def test_default_is_v3_quick_with_frozen_v3_design(nb, monkeypatch):
     assert cfg["CLIP_ACTIONS"] == (0.5, 1.0, 2.0) and cfg["META_TIME_LIMIT_MIN"] == 180
     assert exps == [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)] and seeds == [0]
     b18d = block("# BLOCK 18d ")
-    assert 'CALIB_TAG = "drq"' in b18d and "CALIB_TEST = False" in b18d
+    assert 'CALIB_TAG = "bst10,bstbin"' in b18d and "CALIB_TEST = False" in b18d
 
 
 def test_v3_meta_time_limit(nb, small_cfg):

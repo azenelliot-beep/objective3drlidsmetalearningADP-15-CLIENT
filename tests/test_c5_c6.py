@@ -121,7 +121,7 @@ def test_block18b_stages_apply_overrides_on_fresh_defaults(nb, monkeypatch):
         finally:
             nb["CFG"].clear(); nb["CFG"].update(saved)
         return calls
-    assert 'STAGE = "drift_quick"' in src                 # default = one-session drift scenario (Block 17e)
+    assert 'STAGE = "boost"' in src                       # default = boost stage (Block 17f)
     (fin,) = run("final")
     assert fin[0]["TAG"] == "final" and fin[0]["CLIP_MULT"] == 0.5 and fin[0]["REWARD_FA"] == 0.5
     assert fin[0]["ADP_ACTIONS"] == "pacing" and fin[0]["ADP_META_EPISODES"] == 10 and fin[2] == [0, 1, 2]
