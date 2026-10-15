@@ -83,7 +83,7 @@ def test_public_init_keeps_rng_and_is_cached(nb, small_cfg, restore):
 
 
 @pytest.mark.parametrize("binary", [False, True])
-def test_boost_pipeline_end_to_end(nb, small_cfg, restore, binary):
+def test_boost_pipeline_end_to_end(nb, small_cfg, restore, binary, tmp_path, monkeypatch):
     small_cfg.update(CLIP_MULT=0.5, REWARD_FA=0.5, ADP_ACTIONS="pacing", ADP_META_EPISODES=1,
                      PROXY_MIN_PER_CLIENT=5, BINARY=binary, NUM_CLIENTS_DP=5, PUBLIC_FRAC=0.05,
                      PRETRAIN_STEPS=20, TAG="bstbin" if binary else "bst10")
@@ -97,6 +97,7 @@ def test_boost_pipeline_end_to_end(nb, small_cfg, restore, binary):
         f1 = r["val_at_best"]["F1_per_class"]
         assert (set(f1) == {"attack", "normal"}) if binary else len(f1) == 10
     nb["apply_scenario"]()
+    monkeypatch.chdir(tmp_path)                                        # 18d writes its zip to the working dir
     exec(re.sub(r'^CALIB_TAG = "[\w,]*"', f'CALIB_TAG = "{small_cfg["TAG"]}"',
                 next(s for s in notebook_cells() if s.startswith("# BLOCK 18d ")), flags=re.M), nb)
     assert len(nb["cal_df"]) == 2
