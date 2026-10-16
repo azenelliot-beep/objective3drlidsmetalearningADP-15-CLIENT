@@ -65,7 +65,7 @@ def main():
         elif src.startswith("# BLOCK 18d "):
             src = re.sub(r'^CALIB_TEST = \w+ ', 'CALIB_TEST = False', src, flags=re.M)
         elif src.startswith("# BLOCK 19 "):
-            src = re.sub(r'^TEST_TAG = "\w*" ', 'TEST_TAG = "final"', src, flags=re.M)
+            src = re.sub(r'^TEST_TAG = "[\w,]*" ', 'TEST_TAG = "final"', src, flags=re.M)
         c["source"] = src.splitlines(keepends=True)
     out16 = OUT.with_name("chapter6_v4_eps16.ipynb")
     out16.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")

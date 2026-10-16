@@ -196,6 +196,6 @@ def test_final_paired_tables(nb, small_cfg, tmp_path, monkeypatch):
     exec(next(s for s in notebook_cells() if s.startswith("# BLOCK 18c ")), nb)
     assert list(nb["g"]["seeds"]) == [2]
     b19 = next(s for s in notebook_cells() if s.startswith("# BLOCK 19 "))
-    exec(b19.replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "v4"', 'TEST_TAG = "final"'), nb)
+    exec(b19.replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "bst10,bstbin"', 'TEST_TAG = "final"'), nb)
     assert set(nb["tdf"]["run"]) == {"dp_fixed_eps2__final", "dp_adpmeta_eps2__final", "fedprox_np__final"}
     assert nb["paired"].loc["dp_adpmeta_eps2__final", "seeds_ADP_better"].endswith("/2")

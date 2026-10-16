@@ -125,7 +125,7 @@ def test_run_all_summary_and_test_guard(nb, small_cfg, tmp_path):
     block19 = next(s for s in notebook_cells() if s.startswith("# BLOCK 19 "))
     exec(block19, nb)                                                   # FINAL_TEST = False
     assert not any("_TEST" in f for f in os.listdir(d))
-    exec(block19.replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "v4"', 'TEST_TAG = ""'), nb)
+    exec(block19.replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "bst10,bstbin"', 'TEST_TAG = ""'), nb)
     assert len([f for f in os.listdir(d) if f.endswith("_TEST.json")]) == 6
     t = nb["table"]
     assert "±" in t.loc["dp_fixed_eps3", "MacroF1"] and t.loc["fedprox_np", "eps"] == "-"

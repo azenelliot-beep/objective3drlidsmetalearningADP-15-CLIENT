@@ -78,7 +78,7 @@ def test_v3_stage_and_block19_tag():
     src = next(s for s in notebook_cells() if s.startswith("# BLOCK 18b "))
     assert '"v3_val"' in src and '"final_v3"' in src        # v3 stages stay available (default is now v4_val)
     b19 = next(s for s in notebook_cells() if s.startswith("# BLOCK 19 "))
-    assert 'TEST_TAG = "v4"' in b19 and "FINAL_TEST = False" in b19
+    assert 'TEST_TAG = "bst10,bstbin"' in b19 and "FINAL_TEST = False" in b19
 
 
 def test_eps16_stage_uses_frozen_final_settings(nb, monkeypatch):

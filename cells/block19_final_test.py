@@ -2,7 +2,7 @@
 # Evaluates each run's validation-selected model on the test set and reports mean +/- std over seeds.
 # Nothing in this cell feeds back into any training or selection decision.
 FINAL_TEST = False          # <- set True only for the single final evaluation
-TEST_TAG = "v4"             # only runs of this stage tag are evaluated ("final" = v2 final stage, "v3")
+TEST_TAG = "bst10,bstbin"   # comma-separated stage tags to evaluate ("final" = v2 final stage, "v3", "v4")
 
 if not FINAL_TEST:
     print("FINAL_TEST is False - test set not touched.")
@@ -11,7 +11,7 @@ else:
     for fn in sorted(os.listdir(CFG["RESULTS_DIR"])):
         if not is_run_file(fn):
             continue
-        if TEST_TAG and not fn.split("__seed")[0].endswith(f"__{TEST_TAG}"):
+        if TEST_TAG and not any(fn.split("__seed")[0].endswith(f"__{t}") for t in TEST_TAG.split(",")):
             continue
         with open(os.path.join(CFG["RESULTS_DIR"], fn)) as f:
             r = json.load(f)

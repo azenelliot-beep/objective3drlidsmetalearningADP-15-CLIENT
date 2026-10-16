@@ -94,7 +94,7 @@ def test_summary_and_test_cells_ignore_non_run_json(nb, small_cfg, tmp_path, mon
     exec(block("# BLOCK 18c "), nb)
     exec(calib_src(), nb)
     assert list(nb["cal_df"]["run"]) == ["dp_fixed_eps2__final"]
-    exec(block("# BLOCK 19 ").replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "v4"', 'TEST_TAG = "final"'), nb)
+    exec(block("# BLOCK 19 ").replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "bst10,bstbin"', 'TEST_TAG = "final"'), nb)
     assert list(nb["tdf"]["run"]) == ["dp_fixed_eps2__final"]
 
 
