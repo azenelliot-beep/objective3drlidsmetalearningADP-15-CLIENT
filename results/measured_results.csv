@@ -1,0 +1,35 @@
+experiment,stage_tag,meets_required_framework,deviations,split,method,eps,seeds,Acc,MacroF1,WeightedF1,FAR,DR,source
+Final (ADP-Meta v2),final,baseline (no DP),none,test,fedavg_np,,"0,1,2",95.20 ± 0.05,81.74 ± 0.26,95.41 ± 0.04,1.51 ± 0.29,97.82 ± 0.41,"results/final_v2_TEST_results.md (Block 19, run once)"
+Final (ADP-Meta v2),final,baseline (no DP),none,test,fedprox_np,,"0,1,2",92.80 ± 0.44,75.99 ± 1.24,92.97 ± 0.36,2.01 ± 0.20,95.38 ± 0.93,"results/final_v2_TEST_results.md (Block 19, run once)"
+Final (ADP-Meta v2),final,yes,none,test,dp_fixed,8,"0,1,2",80.51 ± 3.19,46.27 ± 6.41,78.73 ± 4.81,8.55 ± 0.43,80.86 ± 7.21,"results/final_v2_TEST_results.md (Block 19, run once)"
+Final (ADP-Meta v2),final,yes,none,test,dp_adpmeta,8,"0,1,2",76.47 ± 3.84,39.53 ± 6.52,72.65 ± 4.40,7.47 ± 1.21,70.16 ± 6.23,"results/final_v2_TEST_results.md (Block 19, run once)"
+Final (ADP-Meta v2),final,yes,none,test,dp_fixed,3,"0,1,2",71.74 ± 3.53,31.28 ± 4.75,65.85 ± 5.12,5.13 ± 0.62,54.89 ± 9.41,"results/final_v2_TEST_results.md (Block 19, run once)"
+Final (ADP-Meta v2),final,yes,none,test,dp_adpmeta,3,"0,1,2",68.57 ± 2.08,24.22 ± 6.26,60.86 ± 3.14,4.84 ± 0.32,48.47 ± 5.51,"results/final_v2_TEST_results.md (Block 19, run once)"
+Final (ADP-Meta v2),final,yes,none,test,dp_fixed,1,"0,1,2",66.38 ± 1.38,18.20 ± 2.60,56.92 ± 0.83,3.42 ± 1.76,33.18 ± 7.54,"results/final_v2_TEST_results.md (Block 19, run once)"
+Final (ADP-Meta v2),final,yes,none,test,dp_adpmeta,1,"0,1,2",66.08 ± 0.92,17.57 ± 2.05,56.51 ± 0.41,3.38 ± 1.69,31.78 ± 8.56,"results/final_v2_TEST_results.md (Block 19, run once)"
+Final (ADP-Meta v2),final,baseline (no DP),none,val,fedavg_np,,"0,1,2",95.32 ± 0.03,82.12 ± 0.82,,1.22 ± 0.24,97.82 ± 0.52,results/final_v2_val_summary.md
+Final (ADP-Meta v2),final,baseline (no DP),none,val,fedprox_np,,"0,1,2",92.97 ± 0.68,76.96 ± 1.63,,1.69 ± 0.10,95.50 ± 0.94,results/final_v2_val_summary.md
+Final (ADP-Meta v2),final,yes,none,val,dp_fixed,8,"0,1,2",80.44 ± 3.07,46.00 ± 6.17,,8.44 ± 0.75,81.06 ± 7.40,results/final_v2_val_summary.md
+Final (ADP-Meta v2),final,yes,none,val,dp_adpmeta,8,"0,1,2",76.64 ± 3.76,39.65 ± 6.08,,7.20 ± 1.30,70.33 ± 6.23,results/final_v2_val_summary.md
+Final (ADP-Meta v2),final,yes,none,val,dp_fixed,3,"0,1,2",71.86 ± 3.52,31.09 ± 4.97,,4.89 ± 0.69,55.20 ± 9.17,results/final_v2_val_summary.md
+Final (ADP-Meta v2),final,yes,none,val,dp_adpmeta,3,"0,1,2",68.82 ± 2.14,24.48 ± 6.40,,4.60 ± 0.27,48.61 ± 5.81,results/final_v2_val_summary.md
+Final (ADP-Meta v2),final,yes,none,val,dp_fixed,1,"0,1,2",66.55 ± 1.39,18.23 ± 2.48,,3.22 ± 1.60,33.26 ± 7.33,results/final_v2_val_summary.md
+Final (ADP-Meta v2),final,yes,none,val,dp_adpmeta,1,"0,1,2",66.26 ± 0.95,17.57 ± 1.85,,3.17 ± 1.59,31.96 ± 8.45,results/final_v2_val_summary.md
+"Calibration, argmax",final,yes,none,test,dp_fixed,8,0,80.65,49.62,,8.08,79.21,results/calib_seed0_eps8_results.md (evaluation-only threshold calibration)
+"Calibration, tau=0.04",final,yes,post-hoc threshold (no training change),test,dp_fixed,8,0,80.62,50.62,,10.37,84.21,results/calib_seed0_eps8_results.md (evaluation-only threshold calibration)
+"Calibration, argmax",final,yes,none,test,dp_adpmeta,8,0,79.74,46.21,,6.25,73.25,results/calib_seed0_eps8_results.md (evaluation-only threshold calibration)
+"Calibration, tau=0.09",final,yes,post-hoc threshold (no training change),test,dp_adpmeta,8,0,77.26,44.75,,10.44,74.51,results/calib_seed0_eps8_results.md (evaluation-only threshold calibration)
+ADP-Meta v3,v3q,yes (ADP variant),ADP-Meta v3 controller (pacing+clip),val,dp_fixed,8,0,80.74,49.01,,7.58,79.14,results/v3_quick_val_results.md
+ADP-Meta v3,v3q,yes (ADP variant),ADP-Meta v3 controller (pacing+clip),val,dp_adpmeta,8,0,78.60,43.05,,9.00,76.78,results/v3_quick_val_results.md
+ADP-Meta v4 (rejected),v4q,yes (ADP variant),public-subspace gradient projection,val,dp_fixed,8,0,80.74,49.01,,7.58,79.14,results/v4_quick_val_results.md
+ADP-Meta v4 (rejected),v4q,yes (ADP variant),public-subspace gradient projection,val,dp_fixed_proj,8,0,75.30,38.38,,7.93,77.00,results/v4_quick_val_results.md
+ADP-Meta v4 (rejected),v4q,yes (ADP variant),public-subspace gradient projection,val,dp_adpmeta,8,0,66.89,23.23,,3.90,34.74,results/v4_quick_val_results.md
+Drift scenario v5 (stopped),drq,NO,attack families arrive in waves (non-stationary data),val,dp_fixed,8,0,72.29,35.79,,4.83,61.78,Block 18c output pasted by the author (2026-10-16); drift ADP-Meta run stopped before finishing
+Boost,bst10,NO,5 clients (not 15) + 5% public slice pre-trained without DP,val,dp_fixed,8,0,86.51,64.38,,9.97,94.61,Block 18c output pasted by the author (2026-10-16)
+Boost,bst10,NO,5 clients (not 15) + 5% public slice pre-trained without DP,val,dp_adpmeta,8,0,86.51,64.38,,9.97,94.61,Block 18c output pasted by the author (2026-10-16)
+Boost,bstbin,NO,5 clients (not 15) + 5% public slice pre-trained without DP + binary task,val,dp_fixed,8,0,97.98,97.84,,2.32,98.49,Block 18c output pasted by the author (2026-10-16)
+Boost,bstbin,NO,5 clients (not 15) + 5% public slice pre-trained without DP + binary task,val,dp_adpmeta,8,0,97.99,97.85,,2.31,98.50,Block 18c output pasted by the author (2026-10-16)
+Boost,bst10,NO,5 clients (not 15) + 5% public slice pre-trained without DP,test,dp_fixed,8,0,86.88,63.67,87.18,9.40,94.58,Block 19 output pasted by the author (2026-10-16)
+Boost,bst10,NO,5 clients (not 15) + 5% public slice pre-trained without DP,test,dp_adpmeta,8,0,86.88,63.67,87.18,9.40,94.58,Block 19 output pasted by the author (2026-10-16)
+Boost,bstbin,NO,5 clients (not 15) + 5% public slice pre-trained without DP + binary task,test,dp_fixed,8,0,97.79,97.63,97.79,2.58,98.42,Block 19 output pasted by the author (2026-10-16)
+Boost,bstbin,NO,5 clients (not 15) + 5% public slice pre-trained without DP + binary task,test,dp_adpmeta,8,0,97.82,97.67,97.83,2.56,98.48,Block 19 output pasted by the author (2026-10-16)
