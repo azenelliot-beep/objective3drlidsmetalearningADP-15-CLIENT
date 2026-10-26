@@ -15,7 +15,7 @@ import hashlib
 import json
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import pandas as pd
@@ -382,6 +382,8 @@ def prepare(dataset, data_path, cfg):
         split[p] = (np.sort(tr), np.sort(te))
 
     train_rows = np.sort(np.concatenate([tr for tr, _ in split.values()]))
+    if cfg.force_minmax and not spec.minmax:
+        spec = replace(spec, minmax=True)
     pre = Preprocessor(spec).fit(df.iloc[train_rows])
     X = pre.transform(df)
     class_index = {c: i for i, c in enumerate(spec.classes)}

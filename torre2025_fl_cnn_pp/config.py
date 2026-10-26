@@ -30,6 +30,7 @@ class Config:
     sample_frac: float = 1.0                # 1.0 = full dataset as in the paper. <1 only for development runs
     max_rows: int = 0                       # 0 = no cap. >0 only for development runs (logged in results)
     synthetic_rows: int = 200000            # size of the synthetic smoke/verification table (not a paper dataset)
+    force_minmax: bool = False              # True = MinMaxScaler even where Section 4.2 does not list it (ablation)
     drop_row_id_columns: bool = True        # [ASSUMPTION] drop pure row-index / record-ID columns (leakage)
 
     # ---------------- CNN (Algorithm 1, Fig. 4) ----------------
