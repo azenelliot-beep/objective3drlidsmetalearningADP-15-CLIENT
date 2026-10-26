@@ -58,6 +58,23 @@ Finally, each client:
 
 ## How to run
 
+### TON-IoT on Kaggle (recommended)
+
+Open [`notebooks/torre2025_ton_iot_kaggle.ipynb`](../notebooks/torre2025_ton_iot_kaggle.ipynb) on Kaggle, add the
+dataset `fadiabuzwayed/ton-iot-train-test-network` as input, then Run All. The notebook:
+
+- writes this package into `/kaggle/working`;
+- finds the CSV under `/kaggle/input/datasets/fadiabuzwayed/ton-iot-train-test-network`, or any mounted
+  `ton-iot-train-test-network` folder, and checks the TON-IoT schema and class counts;
+- runs a synthetic smoke test, then experiments 1 and 2 (without / with PP) for seeds 42, 1 and 2, then the 5
+  ablations;
+- writes `/kaggle/working/ton_iot_report.md` with the obtained numbers next to Tables 3, 10, 11 and 12.
+
+It was executed end to end here on a fake TON-IoT-format file in quick mode (mechanics only). It has not been run
+on the real data. Regenerate it after code changes with `python -m torre2025_fl_cnn_pp.build_kaggle_notebook`.
+
+### Locally
+
 ```bash
 pip install -r torre2025_fl_cnn_pp/requirements.txt          # see the file for the paper's exact versions
 python -m pytest torre2025_fl_cnn_pp/tests -q                 # 24 tests, about 1 minute on CPU
