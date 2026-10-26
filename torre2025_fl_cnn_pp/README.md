@@ -5,10 +5,12 @@ touch the Chapter 6 code elsewhere in this repository.
 
 ## Read this first
 
-1. **None of the seven datasets was available in this environment.** UCI, Hugging Face and Kaggle are blocked by
-   the network policy, and the paper ships no data. Every number produced here comes from a **synthetic** table that
-   exercises the same code path. Nothing in this folder reproduces Tables 3-12; those runs need the CSVs (see
-   [Datasets](#datasets)).
+1. **TON-IoT was run on the real data (uploaded `Train_Test_Network.csv`, 461,043 rows, class counts identical to
+   Table 1). Without PP, the paper's TON-IoT result is reproduced: seed 42 gives A 99.58 / P 96.42 / R 92.97 /
+   F1 94.37 against the paper's 99.63 / 96.48 / 93.18 / 94.45.** Over 3 seeds: 99.55 / 96.27 / 89.70 / 91.17; the spread
+   comes from the 1,043-row MITM class. **With PP at λ = 0.1 the result is not reproduced** (macro-F1 35.6 ± 6.6;
+   see item 4). This needed MinMax scaling (assumption A15); without it the CNN predicts almost only Normal. The
+   other six datasets were not run (out of scope at the user's request).
 2. **No official code exists** (no link in the paper, none found online). The DP and Diffie-Hellman layers follow
    **PrivacyFL** (Mugunthan et al., ref [59]), which the paper names as the source of its DP method. Its structure
    (client agents, a directory of active clients, offsets that are added before and subtracted after the current
@@ -22,11 +24,14 @@ touch the Chapter 6 code elsewhere in this repository.
    I implement it exactly as described. It is invertible (verified bit-for-bit), but it gives no protection against
    anyone who holds the directory. The server needs that directory, so the server can undo it. The same holds for
    the server-side re-encryption (Step 6).
-4. **At the paper's example noise scale (λ = 0.1, §3.10.1), the DP layer hurts accuracy. The paper says PP changes
-   accuracy "negligibly".** After each client removes its own noise share, the federated model still carries
-   (1/n)·Σ_{j≠k} noise_j, with a standard deviation of about 0.03 per weight. The paper does not report Δ or ε for
-   its experiments, so it is impossible to tell what noise level the authors actually used.
-5. **The convergence rule (max |federated − local| ≤ 0.0005 over all weights) is never met here, even without PP**,
+4. **At the paper's example noise scale (λ = 0.1, §3.10.1), the DP layer destroys most attack detection on
+   TON-IoT.** Macro-F1 falls from 91.2 to 35.6 and federated accuracy from 97.7 % to 74.5 % (3 seeds). The paper says
+   accuracy changes "negligibly" (Tables 11/12: F-A 98.31 → 98.20). After each client removes its own noise share,
+   the federated model still carries (1/n)·Σ_{j≠k} noise_j, with a standard deviation of about 0.03 per weight.
+   With λ = 0.01 the PP run reaches F1 87.5 and F-A 96.8 %, close to no-PP, so the authors' runs are consistent with
+   a noise scale of roughly 0.01 or less. The paper reports neither Δ nor ε, so this cannot be confirmed.
+5. **The convergence rule (max |federated − local| ≤ 0.0005 over all weights) is never met, on TON-IoT or synthetic
+   data, even without PP**,
    so every client runs all 10 iterations. The paper reports convergence after 2-10 iterations (Tables 11/12).
    Either their data saturated training, or "weights and biases" meant something narrower (see ambiguity A3).
 
@@ -185,6 +190,13 @@ Other assumptions (no or small effect on results):
   counted as Normal and the 37 brute-force rows are dropped. IoT-23: labels other than the six classes of Table 4
   (HeartBeat, FileDownload, Mirai, Torii, combined labels) are dropped. CIC IoT 2023 and Edge-IIoT use the dataset
   authors' official groupings; their counts match Table 1.
+- **A15 MinMax scaling for TON-IoT.** §4.2 lists MinMaxScaler only for CIC IoMT, RT-IoT and EdgeIIoT. On TON-IoT,
+  raw values reach 3.9e9 (timestamps, byte counts), and the CNN then predicts almost only Normal: macro-F1 8.0 in
+  FL, and 7.9 even when trained centrally, against 80.0 centrally with MinMax. The reported 99.63 % / F1 94.45
+  cannot come from unscaled inputs, so TON-IoT uses MinMax (fitted on training rows) by default. `--minmax off`
+  gives the literal reading.
+- **A16 Duplicates kept.** 11,071 TON-IoT rows (2.4 %) are exact duplicates. The paper does not remove them, so
+  identical rows can fall into both a train and a test part. This can inflate test scores slightly.
 - **A11 Row-ID columns dropped** (RT-IoT unnamed index, BoT-IoT `pkSeqID`, IoT-23 `uid`). They are record
   identifiers that encode row order and therefore the label. Binary label columns (`label`, `attack`,
   `Attack_label`, `subcategory`) are always dropped. IPs, ports and timestamps are kept, as in the paper. They can
@@ -217,10 +229,37 @@ Inconsistencies in the paper (noted, not resolved):
 
 | | Paper (reported) | This implementation (obtained) |
 |---|---|---|
-| TON-IoT (Tables 3, 10, 11, 12) | A 99.63, P 96.48, R 93.18, F1 94.45 | **Not run.** The data cannot be downloaded in this environment |
+| TON-IoT overall, without PP | A 99.63, P 96.48, R 93.18, F1 94.45 | seed 42: 99.58 / 96.42 / 92.97 / 94.37; 3 seeds: 99.55 ± 0.04 / 96.27 ± 0.44 / 89.70 ± 3.08 / 91.17 ± 3.14 |
+| TON-IoT overall, with PP (λ = 0.1) | (PP effect called negligible) | 3 seeds: 94.92 ± 0.49 / 57.73 ± 12.67 / 33.93 ± 6.75 / 35.63 ± 6.59 |
+| TON-IoT final L-A / F-A, without PP (Table 11) | 98.16 / 98.31 | 97.50 ± 0.39 / 97.72 ± 0.34 |
+| TON-IoT final L-A / F-A, with PP (Table 12) | 98.09 / 98.20 | 96.37 ± 0.57 / 74.47 ± 2.31 |
+| TON-IoT I# (iterations to converge) | 9.25 (no PP), 8.75 (PP) | 10 (no client ever converged) |
+| TON-IoT PP overhead on CCT / TFD | +27 % / +12 % (TON-IoT); about +12 % / +8 % averaged | +3.8 % / +0.8 % (seconds-scale runs; not comparable) |
 | Other six datasets | Tables 4-12 | Not run (out of scope at the user's request; loaders are implemented and tested on fake files) |
 
-### Actual runs: synthetic data only (verification, not a reproduction)
+### TON-IoT (real data)
+
+Per-class and per-client tables next to the paper, for seed 42:
+[`results/ton_iot_seed42_vs_paper.md`](results/ton_iot_seed42_vs_paper.md). Seed-averaged tables and ablations:
+[`results/ton_iot_summary.md`](results/ton_iot_summary.md). The full protocol was used: 4 clients, 10 iterations,
+10 epochs, batch 512, 40 pieces with 75/25 splits.
+
+Per-class without PP (seed 42) tracks Table 3 closely: Normal F1 99.11 vs 99.14, MITM F1 79.33 vs 74.09 (MITM recall
+66.2 vs 61.0, the same weak class the paper names). DDoS (92.3 vs 96.0), XSS (90.7 vs 95.8) and Injection
+(93.1 vs 95.0) are a few points lower.
+
+Ablations on TON-IoT (seed 42; reference F1 94.37 without PP, 38.61 with PP):
+
+| Change | F1 without PP | F1 with PP |
+|---|---|---|
+| `--minmax off` (literal §4.2) | 7.97 | 4.40 |
+| `--dp-fixed-scale 0.01` | - | **87.46** (F-A 96.8 %) |
+| `--dp-scale-mode sensitivity` (Δ/ε, ε = 1) | - | 18.46 |
+| `--dp-noise-removal own_full` | - | 32.68 |
+| `--architecture algorithm1_literal` | 83.27 | 45.84 |
+| `--federated-arrays conv` (Fig. 1 reading) | 91.71 | 40.84 |
+
+### Synthetic data (verification of the code path)
 
 The data is a synthetic table of 200,000 rows, 5 overlapping classes with one rare (2 %) class, 26 features, plus the
 data defects of §4.2 (hex ports, strings, NaN, an empty column, a row-ID column). The full protocol was used:
@@ -259,4 +298,4 @@ What this shows:
 - The 0.0005 convergence tolerance was never reached in any run (smallest max|ΔW| ≈ 7e-3, in the conv-only run
   without PP), so I# = 10 everywhere, unlike the paper's 2-10.
 
-Not verified: anything on real data, all paper numbers, and runtime at the paper's data scale.
+Not verified: the six other datasets, and runtime at the paper's data scale.
