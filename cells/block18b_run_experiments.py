@@ -40,6 +40,7 @@ NEXT = [
 FINAL_CFG = BASE2 | dict(ADP_ACTIONS="pacing", ADP_META_EPISODES=10)        # frozen (CHANGELOG, Sweep 2)
 V3_CFG = BASE2 | dict(ADP_ACTIONS="pacing_clip", ADP_META_EPISODES=24)      # ADP-Meta v3 (Block 17c)
 STAGES = {
+    "none": [],                                  # run nothing here (e.g. the Torre-CNN comparison notebook)
     "v3_val": [("v3", V3_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("dp_fixed", 1.0), ("dp_adpmeta", 1.0)])],
     "final_v3": [("v3", V3_CFG, [0, 1, 2], [
         ("fedavg_np", None), ("fedprox_np", None),

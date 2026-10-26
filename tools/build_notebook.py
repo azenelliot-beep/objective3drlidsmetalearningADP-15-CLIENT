@@ -18,7 +18,7 @@ REPLACE = {
 # The original FINAL Block 18 starts with a '# ====' banner, matched by this line instead
 REPLACE_BLOCK18_MARKER = "# BLOCK 18 (FINAL)"
 BLOCK18_FILES = ["block18a_experiment_defs.py", "block18b_run_experiments.py",
-                 "block18c_val_summary.py", "block19_final_test.py",
+                 "block18c_val_summary.py", "block18d_torre_cnn.py", "block19_final_test.py",
                  "block20_postprocessing.py"]
 
 
@@ -65,6 +65,25 @@ def main():
     out16 = OUT.with_name("chapter6_v4_eps16.ipynb")
     out16.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
     print(f"wrote {out16.relative_to(ROOT)}")
+    # Ready-to-run variant for the detector comparison: Torre et al. CNN in the Chapter 6 pipeline
+    # (Block 18b runs nothing, Block 18d runs the CNN stage, Block 19 tests only the "torre_cnn" runs, once)
+    nb = json.loads(OUT.read_text())
+    for c in nb["cells"]:
+        src = "".join(c["source"])
+        if src.startswith("# BLOCK 18b "):
+            src = re.sub(r'^STAGE = "v3_val"$', 'STAGE = "none"', src, flags=re.M)
+        elif src.startswith("# BLOCK 18d "):
+            src = re.sub(r'^CNN_STAGE = None ', 'CNN_STAGE = "cnn_final"', src, flags=re.M)
+        elif src.startswith("# BLOCK 19 "):
+            src = re.sub(r'^FINAL_TEST = False ', 'FINAL_TEST = True ', src, flags=re.M)
+            src = re.sub(r'^TEST_TAG = "v3" ', 'TEST_TAG = "torre_cnn"', src, flags=re.M)
+        elif src.startswith("# BLOCK 20 "):            # no extra use of the DDQN test set in this notebook
+            src = re.sub(r'^CALIB_TAG = "final" ', 'CALIB_TAG = "skip"  ', src, flags=re.M)
+            src = re.sub(r'^CALIB_EVAL_TEST = True ', 'CALIB_EVAL_TEST = False', src, flags=re.M)
+        c["source"] = src.splitlines(keepends=True)
+    outc = OUT.with_name("chapter6_v4_torre_cnn.ipynb")
+    outc.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
+    print(f"wrote {outc.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
