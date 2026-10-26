@@ -117,7 +117,7 @@ def main(argv=None):
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--max-iterations", type=int, default=None)
     ap.add_argument("--independent-init", action="store_true", help="clients initialise their CNNs independently")
-    ap.add_argument("--minmax", action="store_true", help="MinMaxScaler even where the paper does not list it")
+    ap.add_argument("--minmax", choices=["on", "off"], default=None, help="override the per-dataset MinMaxScaler choice")
     ap.add_argument("--synthetic-rows", type=int, default=None)
     ap.add_argument("--tag-suffix", default="")
     a = ap.parse_args(argv)
@@ -132,7 +132,7 @@ def main(argv=None):
                              dp_fixed_scale=a.dp_fixed_scale,
                              federated_arrays=a.federated_arrays, tolerance=a.tolerance,
                              epochs=a.epochs, max_iterations=a.max_iterations,
-                             synthetic_rows=a.synthetic_rows, force_minmax=True if a.minmax else None,
+                             synthetic_rows=a.synthetic_rows, minmax=None if a.minmax is None else a.minmax == "on",
                              common_initialization=False if a.independent_init else None)
     modes = {"both": [False, True], "on": [True], "off": [False]}[a.pp]
     summaries = {}

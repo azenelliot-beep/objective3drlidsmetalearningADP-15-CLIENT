@@ -225,7 +225,12 @@ class DatasetSpec:
 SPECS = {
     "ton_iot": DatasetSpec("TON-IoT", load_ton_iot, TON_IOT_MAP,
                            ["Normal", "DDoS", "Reconnaissance", "Backdoor", "Injection", "Password", "Ransomware",
-                            "XSS", "DoS", "MITM"], leak_columns=["label"]),
+                            "XSS", "DoS", "MITM"], leak_columns=["label"],
+                           # [ASSUMPTION] Section 4.2 lists no scaler for TON-IoT, but without one the raw values
+                           # (up to 3.9e9) make the CNN predict almost only Normal (macro-F1 8.0 on the real file,
+                           # even centrally), which cannot give the reported 99.63 % / F1 94.45. Use --minmax off
+                           # for the literal reading.
+                           minmax=True),
     "iot_23": DatasetSpec("IoT-23", load_iot_23, IOT23_MAP,
                           ["Normal", "PortScan", "C&C", "Okiru", "DDoS", "Attack"],
                           drop_columns=["local_orig", "local_resp", "missed_bytes", "tunnel_parents"],
@@ -382,8 +387,8 @@ def prepare(dataset, data_path, cfg):
         split[p] = (np.sort(tr), np.sort(te))
 
     train_rows = np.sort(np.concatenate([tr for tr, _ in split.values()]))
-    if cfg.force_minmax and not spec.minmax:
-        spec = replace(spec, minmax=True)
+    if cfg.minmax is not None and cfg.minmax != spec.minmax:
+        spec = replace(spec, minmax=bool(cfg.minmax))
     pre = Preprocessor(spec).fit(df.iloc[train_rows])
     X = pre.transform(df)
     class_index = {c: i for i, c in enumerate(spec.classes)}
