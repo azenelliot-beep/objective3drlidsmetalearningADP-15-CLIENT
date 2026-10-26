@@ -33,7 +33,7 @@ def _fl_stats(run):
             "CCT": np.mean([c["CCT_mean_s"] for c in run["clients"]]),
             "TFD": np.mean([c["TFD_mean_s"] for c in run["clients"]]),
             "L-A": np.mean([c["L-A"] for c in run["clients"]]),
-            "F-A": np.nanmean([c["F-A"] for c in run["clients"]]),
+            "F-A": float(np.mean([c["F-A"] for c in run["clients"]])),
             "nan_rounds": int(np.sum(~np.isfinite(fa))),
             "min_max_dW": min(x["max_abs_diff_weights"] for x in h)}
 

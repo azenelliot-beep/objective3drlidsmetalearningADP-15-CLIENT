@@ -196,4 +196,50 @@ Inconsistencies in the paper (noted, not resolved):
 
 ## Results
 
-RESULTS_PLACEHOLDER
+### Paper vs. this implementation
+
+| | Paper (reported) | This implementation (obtained) |
+|---|---|---|
+| TON-IoT (Tables 3, 10, 11, 12) | A 99.63, P 96.48, R 93.18, F1 94.45 | **Not run.** The data cannot be downloaded in this environment |
+| Other six datasets | Tables 4-12 | Not run (out of scope at the user's request; loaders are implemented and tested on fake files) |
+
+### Actual runs: synthetic data only (verification, not a reproduction)
+
+The data is a synthetic table of 200,000 rows, 5 overlapping classes with one rare (2 %) class, 26 features, plus the
+data defects of §4.2 (hex ports, strings, NaN, an empty column, a row-ID column). The full protocol was used:
+4 clients, 10 iterations, 10 epochs, batch 512, 40 pieces with 75/25 splits. Seeds 42, 1 and 2. Full tables are in
+[`results/synthetic_summary.md`](results/synthetic_summary.md).
+
+| Setting (3 seeds, mean ± std) | Overall A | Overall P | Overall R | Overall F1 | final F-A | clients converged |
+|---|---|---|---|---|---|---|
+| Without PP | 99.12 ± 0.07 | 97.23 ± 0.30 | 94.66 ± 0.70 | 95.85 ± 0.45 | 98.08 ± 0.44 | 0 / 12 |
+| With PP (λ = 0.1) | 93.88 ± 1.82 | 79.91 ± 3.59 | 79.41 ± 4.19 | 76.38 ± 2.51 | 85.01 ± 4.49 | 0 / 12 |
+
+**PP overhead:** mean CCT +6.6 %, mean TFD +1.9 %. The paper reports about +12 % and +8 %. Here CCT is a few
+seconds and TFD is dominated by the simulated latencies, so the percentages are not comparable with the paper's
+minute-long runs.
+
+Ablations (seed 42, one change each; reference: F1 95.36 without PP, 78.92 with PP):
+
+| Change | F1 without PP | F1 with PP | Reading |
+|---|---|---|---|
+| `--federated-arrays all` (BN moving statistics also noised) | - | 13.37 (NaN models in 32/40 rounds) | noise makes BN variances negative → the model collapses |
+| `--dp-noise-removal own_full` | - | 42.85 | subtracting the full own noise adds noise |
+| `--architecture algorithm1_literal` (no Dropout/BN in the graph) | 89.60 | 87.42 | PP costs little without BN; costs 6 F1 points without PP |
+| `--federated-arrays conv` (Fig. 1 reading) | 94.75 | 78.78 | same PP cost as the default |
+| `--independent-init` | 94.51 | - | small effect at the full protocol |
+| `--dp-fixed-scale 0.01` | - | 95.18 | PP effect negligible |
+| `--dp-fixed-scale 0.001` | - | 95.65 | PP effect negligible |
+| `--dp-scale-mode sensitivity` (Δ/ε, ε = 1) | - | 89.70 | intermediate |
+
+What this shows:
+
+- All mechanisms execute; the counters in every `summary.json` show one DP/DK/HE pass per client per iteration.
+- The DH offsets cancel in the server average; the measured error is < 1e-6 in every round.
+- The encryption is lossless: λ = 0 reproduces plain FedAvg (test).
+- The paper's "negligible accuracy change with PP" is reproduced only if the DP scale is about 10× or more smaller
+  than its worked example, or if BatchNorm is not in the model.
+- The 0.0005 convergence tolerance was never reached in any run (smallest max|ΔW| ≈ 7e-3, in the conv-only run
+  without PP), so I# = 10 everywhere, unlike the paper's 2-10.
+
+Not verified: anything on real data, all paper numbers, and runtime at the paper's data scale.
