@@ -66,9 +66,10 @@ class CNNAgent:
 
 def _ce_one(net, w):
     """Loss of ONE record (needed for per-sample clipping): weighted cross-entropy on the logits."""
-    def loss_one(p, b, xi, yi):
+    def loss_one(p, b, xi, yi):                       # gather (not w[yi]) so that vmap can batch it
         logits = functional_call(net, (p, b), (xi.unsqueeze(0),)).squeeze(0)
-        return w[yi] * F.cross_entropy(logits.unsqueeze(0), yi.unsqueeze(0))
+        t = yi.unsqueeze(0)
+        return -(w.gather(0, t) * F.log_softmax(logits, 0).gather(0, t)).squeeze(0)
     return loss_one
 
 
