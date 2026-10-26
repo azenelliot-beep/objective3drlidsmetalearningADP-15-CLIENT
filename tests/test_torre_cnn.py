@@ -82,3 +82,29 @@ def test_block19_can_rebuild_cnn(nb, small_cfg):
     agent.set_fl_parameters(torch.load(nb["result_path"](out["run"], 1, "_best.pt")))
     m = nb["eval_metrics"](agent, nb["val_dataset"])
     assert m["Macro_F1"] == pytest.approx(out["val_at_best"]["Macro_F1"])
+
+
+@pytest.mark.parametrize("clip,mu", [(0.5, 0.0), (1e-3, 0.1), (None, 0.01), (50.0, 0.0)])
+def test_ghost_closed_form_equals_vmap(nb, clip, mu):
+    """GhostCNNFederation (closed-form per-record gradients) must give the same parameters as the vmap version,
+    with clipping active (small C), inactive (large C) or absent."""
+    a, b = make_pair(nb, clip=clip)
+    gp = a[0].ddqn.get_fl_parameters()
+    fa, fb = nb["SupervisedFastFederation"](a), nb["GhostCNNFederation"](b)
+    sig = {0: 0.0, 1: 0.0, 2: 0.0}
+    for _ in range(2):
+        pa, na, _ = nb["fit_clients"](a, [0, 1, 2], gp, sig, 4, mu, fa)
+        pb, nb_, _ = nb["fit_clients"](b, [0, 1, 2], gp, sig, 4, mu, fb)
+        for x, y in zip(pa, pb):
+            for ta, tb in zip(x, y):
+                assert torch.allclose(ta, tb, atol=1e-5, rtol=1e-4)
+        gp = nb["weighted_average"](pb, nb_)
+
+
+def test_runner_uses_closed_form_path(nb, small_cfg, monkeypatch):
+    called = []
+    orig = nb["GhostCNNFederation"]._clipped_sum
+    monkeypatch.setattr(nb["GhostCNNFederation"], "_clipped_sum", lambda self, *a: called.append(1) or orig(self, *a))
+    nb["CFG"]["TAG"] = "torre_cnn_test"
+    nb["run_cnn_pipeline"]("dp_fixed", 2, 2.0, C=1.0)
+    assert called

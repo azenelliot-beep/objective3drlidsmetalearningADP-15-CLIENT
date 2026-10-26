@@ -119,6 +119,19 @@ class SupervisedFastFederation(FastFederation):
         self._g_ce = vmap(vmap(grad(_ce_one(self.base, clients[0].ddqn.ce_w)), in_dims=(None, None, 0, 0)),
                           in_dims=(0, 0, 0, 0))
 
+    def _clipped_sum(self, x, y, valid):
+        """Sum over each client's batch of per-record gradients clipped to C (vmap: one gradient per record)."""
+        K, B = valid.shape
+        p_det = {k: v.detach() for k, v in self.params.items()}
+        g = self._g_ce(p_det, self.buffers, x, y)                                     # [K, B, ...]
+        if self.C is not None:
+            norms = torch.sqrt(sum(gi.reshape(K, B, -1).pow(2).sum(-1) for gi in g.values()))
+            factor = (self.C / (norms + 1e-12)).clamp(max=1.0)
+        else:
+            factor = torch.ones(K, B, device=self.dev)
+        factor = factor * valid
+        return {k: (gi * factor.view(K, B, *([1] * (gi.dim() - 2)))).sum(1) for k, gi in g.items()}
+
     def _step(self, sigma, mu, gp):
         K, dev = self.K, self.dev
         take = (torch.rand(self.row_ok.shape, device=dev) < self.q[:, None]) & self.row_ok
@@ -129,15 +142,7 @@ class SupervisedFastFederation(FastFederation):
             valid = torch.arange(B, device=dev)[None, :] < cnt[:, None]
             x = torch.gather(self.X, 1, order[..., None].expand(-1, -1, self.X.shape[2]))
             y = torch.gather(self.Y, 1, order)
-            p_det = {k: v.detach() for k, v in self.params.items()}
-            g = self._g_ce(p_det, self.buffers, x, y)                                 # [K, B, ...]
-            if self.C is not None:
-                norms = torch.sqrt(sum(gi.reshape(K, B, -1).pow(2).sum(-1) for gi in g.values()))
-                factor = (self.C / (norms + 1e-12)).clamp(max=1.0)
-            else:
-                factor = torch.ones(K, B, device=dev)
-            factor = factor * valid
-            summed = {k: (gi * factor.view(K, B, *([1] * (gi.dim() - 2)))).sum(1) for k, gi in g.items()}
+            summed = self._clipped_sum(x, y, valid)
         else:
             summed = {k: torch.zeros_like(v) for k, v in self.params.items()}
         ebs = self.q * self.n
@@ -154,6 +159,47 @@ class SupervisedFastFederation(FastFederation):
         self.opt.step()
         self.opt.zero_grad(set_to_none=True)
         self.steps += 1
+
+
+class GhostCNNFederation(SupervisedFastFederation):
+    """Same computation as SupervisedFastFederation, written in closed form for TorreCNN.
+    One batched backward pass gives every record's gradient w.r.t. each layer OUTPUT (records are independent:
+    no BatchNorm). Per-record parameter gradients follow exactly: Linear W -> outer(dz, h), b -> dz;
+    Conv1d W -> sum_t dz[c, t] * x[t + j], b -> sum_t dz[c, t]. Linear norms use ||outer(dz, h)||^2 =
+    ||dz||^2 ||h||^2 ("ghost" norm), so the [records x 53k] Dense gradients are never materialised.
+    Clipping, noise, sampling, accounting and FedProx are unchanged (inherited)."""
+    def _clipped_sum(self, x, y, valid):
+        K, B = valid.shape
+        P = {k: v.detach().requires_grad_(True) for k, v in self.params.items()}
+        u = x.unfold(-1, self.base.conv.kernel_size[0], 1)                            # [K, B, T, k]
+        z1 = torch.einsum("kbtj,kcj->kbct", u, P["conv.weight"][:, :, 0, :]) + P["conv.bias"][:, None, :, None]
+        T2 = z1.shape[-1] // 2
+        f = F.relu(z1)[..., :2 * T2].reshape(K, B, z1.shape[2], T2, 2).amax(-1).reshape(K, B, -1)
+        z2 = torch.einsum("kbi,koi->kbo", f, P["dense.weight"]) + P["dense.bias"][:, None]
+        h2 = F.relu(z2)
+        z3 = torch.einsum("kbi,koi->kbo", h2, P["out.weight"]) + P["out.bias"][:, None]
+        w = self.clients[0].ddqn.ce_w
+        nll = -(w[y] * F.log_softmax(z3, -1).gather(-1, y[..., None]).squeeze(-1))
+        dz1, dz2, dz3 = torch.autograd.grad((nll * valid).sum(), [z1, z2, z3])
+        g1w = torch.einsum("kbct,kbtj->kbcj", dz1, u)
+        g1b = dz1.sum(-1)
+        f, h2 = f.detach(), h2.detach()
+        if self.C is not None:
+            sq = (g1w.pow(2).sum((-1, -2)) + g1b.pow(2).sum(-1)
+                  + dz2.pow(2).sum(-1) * (f.pow(2).sum(-1) + 1) + dz3.pow(2).sum(-1) * (h2.pow(2).sum(-1) + 1))
+            factor = (self.C / (sq.sqrt() + 1e-12)).clamp(max=1.0)
+        else:
+            factor = torch.ones(K, B, device=self.dev)
+        a = factor * valid
+        return {"conv.weight": torch.einsum("kbcj,kb->kcj", g1w, a).unsqueeze(2),
+                "conv.bias": torch.einsum("kbc,kb->kc", g1b, a),
+                "dense.weight": torch.einsum("kbo,kbi->koi", dz2 * a[..., None], f),
+                "dense.bias": (dz2 * a[..., None]).sum(1),
+                "out.weight": torch.einsum("kbo,kbi->koi", dz3 * a[..., None], h2),
+                "out.bias": (dz3 * a[..., None]).sum(1)}
+
+
+CNN_FAST_IMPL = GhostCNNFederation        # exact closed form; SupervisedFastFederation = generic vmap version
 
 
 ARCH["torre_cnn"] = lambda i, a, d, cw=None, **kw: CNNAgent(i, a, d, cw, **kw)       # Block 19 rebuilds models
@@ -195,7 +241,7 @@ def run_cnn_pipeline(method, seed, eps_budget=None, C=None):
     base = ([get_noise_multiplier(target_epsilon=eps_budget, target_delta=delta, sample_rate=c.q,
                                   steps=R * STEPS, accountant="rdp") for c in clients] if private
             else [0.0] * len(clients))
-    fast = SupervisedFastFederation(clients) if CFG["FAST"] and CFG["CLIENT_FRAC"] >= 1.0 else None
+    fast = CNN_FAST_IMPL(clients) if CFG["FAST"] and CFG["CLIENT_FRAC"] >= 1.0 else None
     print(f"[{name} | seed {seed}] Torre CNN ({sum(p.numel() for p in g.online_net.parameters())} params) | "
           f"clip={C if use_clip else 'none'} | mu={mu} | sigma median={np.median(base):.3f}")
     history, states, eps_now, t0 = [], [], None, time.time()
