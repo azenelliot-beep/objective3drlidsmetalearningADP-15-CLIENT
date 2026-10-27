@@ -11,7 +11,8 @@
 #   Keras initialisers (Glorot-uniform weights, zero biases). Loss = cross-entropy (Algorithm 1, unweighted by
 #   default; CNN_CE_WEIGHTS = True uses the same sqrt-balanced weights as the DDQN reward, as an ablation).
 # Runs are tagged "torre_cnn" (CFG TAG), so their result files never collide with the DDQN runs.
-CNN_STAGE = None                  # None = define only | "smoke" | "cnn_final" (fedavg/fedprox + fixed DP eps 8/3/1, seeds 0/1/2)
+CNN_STAGE = None                  # None = define only | "smoke" | "cnn_final" (fedavg/fedprox + fixed DP eps 8/3/1,
+                                  # seeds 0/1/2) | "cnn_adpmeta" (ADP-Meta v2 meta-learned, eps 8/3/1, seeds 0/1/2)
 CNN_CE_WEIGHTS = False            # ablation: class-weighted cross-entropy (same weights as the DDQN reward)
 
 
@@ -222,7 +223,7 @@ def cnn_clip_norm():
 def run_cnn_pipeline(method, seed, eps_budget=None, C=None):
     """run_dp_pipeline (fixed noise / non-private paths) with the CNN detector."""
     mu, use_clip, private, adaptive = METHODS_DP_PIPELINE[method]
-    assert not adaptive, "ADP-Meta is not part of this comparison"
+    assert not adaptive or CFG["ADP_ACTIONS"] == "pacing", "CNN + ADP-Meta: only the frozen v2 (pacing) is supported"
     mu = CFG["MU"] if mu == "MU" else mu
     assert private == (eps_budget is not None), f"{method}: eps_budget must be given iff the method is private"
     name = run_name(method, eps_budget)
@@ -242,6 +243,8 @@ def run_cnn_pipeline(method, seed, eps_budget=None, C=None):
                                   steps=R * STEPS, accountant="rdp") for c in clients] if private
             else [0.0] * len(clients))
     fast = CNN_FAST_IMPL(clients) if CFG["FAST"] and CFG["CLIENT_FRAC"] >= 1.0 else None
+    if adaptive:
+        return _run_cnn_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast)
     print(f"[{name} | seed {seed}] Torre CNN ({sum(p.numel() for p in g.online_net.parameters())} params) | "
           f"clip={C if use_clip else 'none'} | mu={mu} | sigma median={np.median(base):.3f}")
     history, states, eps_now, t0 = [], [], None, time.time()
@@ -265,6 +268,39 @@ def run_cnn_pipeline(method, seed, eps_budget=None, C=None):
         "delta": delta if private else None, "clip_norm": C if use_clip else None, "mu": mu,
         "base_sigma_per_client": base, "rounds_run": len(history), "minutes": (time.time() - t0) / 60,
         "detector": "Torre et al. 2025 Algorithm 1 1D-CNN", "ce_weights": CNN_CE_WEIGHTS})
+
+
+def _cnn_fast(clients):
+    return CNN_FAST_IMPL(clients) if CFG["FAST"] and CFG["CLIENT_FRAC"] >= 1.0 else None
+
+
+def _run_cnn_paced(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast):
+    """_run_paced (ADP-Meta v2, Block 18a) with the CNN detector. With ADP_META_EPISODES > 0 the controller is
+    meta-trained on validation (half A proxies, half B reward) with CNN proxies, then frozen and used greedily."""
+    R, STEPS, delta = CFG["ROUNDS"], CFG["LOCAL_STEPS"], CFG["DELTA"]
+    meta = CFG["ADP_META_EPISODES"] > 0
+    if meta:
+        ctrl = meta_train_controller(eps_budget, C, mk_agent=lambda: CNNAgent(input_dim, action_dim, device,
+                                                                               reward_weights(), lr=CFG["LR"]),
+                                     client_cls=SupervisedDPClient, fast_factory=_cnn_fast)
+        mode = "greedy"
+        set_seed(seed); rng = np.random.default_rng(seed)              # meta-training must not shift the run's RNG
+    else:
+        ctrl, mode = ADPMetaV2(CFG["PACE_ACTIONS"], lr=CFG["ADP_LR"], entropy_coef=CFG["ADP_ENTROPY"],
+                               device=device), "sample_online"
+    pacers = [RDPPacer(c.q, eps_budget, delta, R, STEPS) for c in clients]
+    print(f"[{name} | seed {seed}] Torre CNN + ADP-Meta v2 ({mode}) | clip={C} | mu={mu} | "
+          f"sigma0 median={np.median([p.sigma0 for p in pacers]):.3f}")
+    t0 = time.time()
+    history, states, _ = paced_episode(name, g, clients, pacers, ctrl, val_dataset, rounds=R, steps=STEPS, mu=mu,
+                                       rng=rng, mode=mode, eps_budget=eps_budget, keep_states=True, fast=fast)
+    return _save(name, seed, history, states, "torre_cnn", {
+        "method": method, "private": True, "eps_budget": eps_budget,
+        "final_epsilon": history[-1]["epsilon"] if history else 0.0,
+        "delta": delta, "clip_norm": C, "mu": mu, "adp_version": "v2-pacing", "adp_mode": mode,
+        "controller_file": controller_path(eps_budget) if meta else None,
+        "sigma0_per_client": [p.sigma0 for p in pacers], "rounds_run": len(history),
+        "minutes": (time.time() - t0) / 60, "detector": "Torre et al. 2025 Algorithm 1 1D-CNN"})
 
 
 def run_cnn_all(experiments, seeds):
@@ -291,14 +327,17 @@ def run_cnn_all(experiments, seeds):
 # CNN does not use): CLIP_MULT 0.5. REWARD_FA is a DDQN reward term and has no counterpart in cross-entropy.
 CNN_CFG = dict(CLIP_MULT=0.5, TAG="torre_cnn" + ("_cew" if CNN_CE_WEIGHTS else ""))
 CNN_EXPS = [("fedavg_np", None), ("fedprox_np", None), ("dp_fixed", 8.0), ("dp_fixed", 3.0), ("dp_fixed", 1.0)]
+CNN_ADP_CFG = dict(ADP_ACTIONS="pacing", ADP_META_EPISODES=10)   # the frozen DDQN final stage's ADP-Meta settings
 CNN_STAGES = {
     "smoke": (dict(ROUNDS=2, LOCAL_STEPS=5), [0], [("fedprox_np", None), ("dp_fixed", 8.0)]),
     "cnn_final": ({}, [0, 1, 2], CNN_EXPS),
+    "cnn_adpmeta": (CNN_ADP_CFG, [0, 1, 2], [("dp_adpmeta", 8.0), ("dp_adpmeta", 3.0), ("dp_adpmeta", 1.0)]),
+    "smoke_adpmeta": (CNN_ADP_CFG | dict(ROUNDS=2, LOCAL_STEPS=3, ADP_META_EPISODES=2), [0], [("dp_adpmeta", 8.0)]),
 }
 if CNN_STAGE is not None:
     over, seeds, exps = CNN_STAGES[CNN_STAGE]
     CFG.clear(); CFG.update(_DEFAULT_CFG); CFG.update(CNN_CFG); CFG.update(over)
-    if CNN_STAGE == "smoke":
+    if CNN_STAGE.startswith("smoke"):
         CFG["TAG"] += "_smoke"
     run_cnn_all(exps, seeds)
     CFG.clear(); CFG.update(_DEFAULT_CFG)

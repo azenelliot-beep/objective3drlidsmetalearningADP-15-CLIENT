@@ -108,3 +108,36 @@ def test_runner_uses_closed_form_path(nb, small_cfg, monkeypatch):
     nb["CFG"]["TAG"] = "torre_cnn_test"
     nb["run_cnn_pipeline"]("dp_fixed", 2, 2.0, C=1.0)
     assert called
+
+
+def test_cnn_adpmeta_meta_trains_with_cnn_proxies_and_respects_budget(nb, small_cfg, monkeypatch):
+    small_cfg.update(ADP_ACTIONS="pacing", ADP_META_EPISODES=2, PROXY_MIN_PER_CLIENT=5, TAG="torre_cnn_adp_test")
+    built = []
+    orig = nb["CNNAgent"].__init__
+    monkeypatch.setattr(nb["CNNAgent"], "__init__", lambda self, *a, **k: built.append(1) or orig(self, *a, **k))
+    out = nb["run_cnn_pipeline"]("dp_adpmeta", 0, 2.0, C=1.0)
+    assert out["arch"] == "torre_cnn" and out["adp_mode"] == "greedy" and out["controller_file"].endswith("torre_cnn_adp_test.pt")
+    assert all(h["epsilon"] <= 2.0 + 1e-9 for h in out["history"])
+    assert len(built) > 2 * (nb["NUM_CLIENTS"] + 1)            # proxies of both meta-episodes were CNNs too
+
+
+def test_meta_training_checkpoint_resume_is_exact(nb, small_cfg, tmp_path, monkeypatch):
+    small_cfg.update(ADP_ACTIONS="pacing", ADP_META_EPISODES=2, PROXY_MIN_PER_CLIENT=5)
+    small_cfg.update(TAG="ck_full", RESULTS_DIR=str(tmp_path / "full"))
+    full = nb["meta_train_controller"](2.0, 1.0)
+    # interrupted run: crash at the start of episode 2, then resume
+    small_cfg.update(TAG="ck_int", RESULTS_DIR=str(tmp_path / "int"))
+    orig = nb["paced_episode"]
+    calls = []
+    def crash_second(*a, **k):
+        calls.append(1)
+        if len(calls) == 2:
+            raise KeyboardInterrupt
+        return orig(*a, **k)
+    monkeypatch.setitem(nb, "paced_episode", crash_second)
+    with pytest.raises(KeyboardInterrupt):
+        nb["meta_train_controller"](2.0, 1.0)
+    monkeypatch.setitem(nb, "paced_episode", orig)
+    resumed = nb["meta_train_controller"](2.0, 1.0)
+    for a, b in zip(full.state_dict().values(), resumed.state_dict().values()):
+        assert nb["torch"].allclose(a, b, atol=1e-6)

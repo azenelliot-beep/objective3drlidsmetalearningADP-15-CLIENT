@@ -84,6 +84,15 @@ def main():
     outc = OUT.with_name("chapter6_v4_torre_cnn.ipynb")
     outc.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
     print(f"wrote {outc.relative_to(ROOT)}")
+    # Same, for the CNN + ADP-Meta v2 stage (meta-trained controllers are cached and resumable)
+    for c in nb["cells"]:
+        src = "".join(c["source"])
+        if src.startswith("# BLOCK 18d "):
+            src = src.replace('CNN_STAGE = "cnn_final"', 'CNN_STAGE = "cnn_adpmeta"')
+        c["source"] = src.splitlines(keepends=True)
+    outa = OUT.with_name("chapter6_v4_torre_cnn_adpmeta.ipynb")
+    outa.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
+    print(f"wrote {outa.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

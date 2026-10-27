@@ -185,8 +185,13 @@ def controller_path(eps_budget):
     return os.path.join(CFG["RESULTS_DIR"], f"controller_eps{eps_budget:g}{tag}.pt")
 
 
-def meta_train_controller(eps_budget, C):
-    """C6: train ADP-Meta v2 over practice episodes on validation half A (reward on half B). Cached per eps."""
+def meta_train_controller(eps_budget, C, mk_agent=None, client_cls=None, fast_factory=None):
+    """C6: train ADP-Meta v2 over practice episodes on validation half A (reward on half B). Cached per eps.
+    mk_agent / client_cls / fast_factory choose the proxy detector (default: SmallDDQN + DPClient + make_fast).
+    A checkpoint is written after every episode, so an interrupted meta-training resumes where it stopped
+    (episodes are seeded individually, so the resumed result is the same as an uninterrupted one)."""
+    mk_agent = mk_agent or (lambda: SmallDDQN(input_dim, action_dim, device, reward_weights(), gamma=0.0, lr=CFG["LR"]))
+    client_cls, fast_factory = client_cls or DPClient, fast_factory or make_fast
     path = controller_path(eps_budget)
     ctrl = ADPMetaV2(CFG["PACE_ACTIONS"], lr=CFG["ADP_LR"], entropy_coef=CFG["ADP_ENTROPY"], device=device)
     if os.path.exists(path):
@@ -199,26 +204,36 @@ def meta_train_controller(eps_budget, C):
     R, STEPS, mu = CFG["ROUNDS"], CFG["LOCAL_STEPS"], CFG["MU"]
     set_seed(SPLIT_SEED)
     ctrl = ADPMetaV2(CFG["PACE_ACTIONS"], lr=CFG["ADP_LR"], entropy_coef=CFG["ADP_ENTROPY"], device=device)
-    log, t0 = [], time.time()
-    for e in range(CFG["ADP_META_EPISODES"]):
+    log, t0, start = [], time.time(), 0
+    ckpt = path.replace(".pt", "_partial.pt")
+    if os.path.exists(ckpt):
+        st = torch.load(ckpt, weights_only=False)
+        ctrl.load_state_dict(st["policy"]); ctrl.opt.load_state_dict(st["opt"]); ctrl.baseline = st["baseline"]
+        log, start = st["log"], st["episodes_done"]
+        print(f"Resuming meta-training {path} after episode {start}")
+    for e in range(start, CFG["ADP_META_EPISODES"]):
         es = 10_000 + e
         set_seed(es)
         parts = dirichlet_split(yA, NUM_CLIENTS, ALPHA, np.random.default_rng(es), CFG["PROXY_MIN_PER_CLIENT"])
-        mk = lambda: SmallDDQN(input_dim, action_dim, device, reward_weights(), gamma=0.0, lr=CFG["LR"])
-        g = mk()
-        proxies = [DPClient(mk(), XA[ci], yA[ci], device, model_name=f"Proxy{k+1}", batch_size=CFG["BATCH"],
-                            clip_norm=C, delta=CFG["DELTA"]) for k, ci in enumerate(parts)]
+        g = mk_agent()
+        proxies = [client_cls(mk_agent(), XA[ci], yA[ci], device, model_name=f"Proxy{k+1}", batch_size=CFG["BATCH"],
+                              clip_norm=C, delta=CFG["DELTA"]) for k, ci in enumerate(parts)]
         pacers = [RDPPacer(q_real[k], eps_budget, CFG["DELTA"], R, STEPS) for k in range(len(proxies))]
         hist, _, rewards = paced_episode(f"meta eps{eps_budget:g} ep{e+1}", g, proxies, pacers, ctrl, val_B,
                                          rounds=R, steps=STEPS, mu=mu, rng=np.random.default_rng(es),
-                                         mode="sample_episodic", fast=make_fast(proxies))
+                                         mode="sample_episodic", fast=fast_factory(proxies))
         ret = ctrl.finish_episode(rewards) if rewards else 0.0
         best = max((h["Macro_F1"] for h in hist), default=float("nan"))
         log.append({"episode": e + 1, "return": ret, "best_val_B_F1": best, "actions": [h["action_k"] for h in hist]})
         print(f"=== meta-episode {e+1}/{CFG['ADP_META_EPISODES']} | return={ret:+.4f} | best F1(B)={100*best:.1f} "
               f"| actions={log[-1]['actions']} | {(time.time()-t0)/60:.0f} min")
+        os.makedirs(CFG["RESULTS_DIR"], exist_ok=True)
+        torch.save({"policy": ctrl.state_dict(), "opt": ctrl.opt.state_dict(), "baseline": ctrl.baseline,
+                    "log": log, "episodes_done": e + 1}, ckpt)
     os.makedirs(CFG["RESULTS_DIR"], exist_ok=True)
     torch.save(ctrl.state_dict(), path)
+    if os.path.exists(ckpt):
+        os.remove(ckpt)
     with open(path.replace(".pt", "_meta_log.json"), "w") as f:
         json.dump({"eps_budget": eps_budget, "episodes": log, "minutes": (time.time() - t0) / 60,
                    "val_halves_seed": SPLIT_SEED, "cfg": {k: (list(v) if isinstance(v, tuple) else v)
