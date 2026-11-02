@@ -4,8 +4,13 @@
 FINAL_TEST = False          # <- set True only for the single final evaluation
 TEST_TAG = "enh"   # comma-separated stage tags to evaluate ("final" = v2 final stage, "v3", "v4")
 
+_tags = [t for t in TEST_TAG.split(",") if t]
+_matching = [fn for fn in (sorted(os.listdir(CFG["RESULTS_DIR"])) if os.path.isdir(CFG["RESULTS_DIR"]) else [])
+             if is_run_file(fn) and (not _tags or any(fn.split("__seed")[0].endswith(f"__{t}") for t in _tags))]
 if not FINAL_TEST:
     print("FINAL_TEST is False - test set not touched.")
+elif not _matching:
+    print(f"No finished runs with TEST_TAG = '{TEST_TAG}' in {CFG['RESULTS_DIR']} - test set not touched.")
 else:
     rows = []
     for fn in sorted(os.listdir(CFG["RESULTS_DIR"])):

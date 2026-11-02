@@ -234,6 +234,7 @@ def test_paired_tables_include_fair_baseline(nb, small_cfg, tmp_path, monkeypatc
     exec(next(s for s in notebook_cells() if s.startswith("# BLOCK 18c ")), nb)
     assert set(nb["pdf_"]["run"]) == {"dp_adpmeta_eps2__v4", "dp_adpmeta_eps2__v4  vs fixed_proj"}
     b19 = next(s for s in notebook_cells() if s.startswith("# BLOCK 19 "))
+    b19 = re.sub(r'^TEST_TAG = "[\w,]*"', 'TEST_TAG = "v4"', b19, flags=re.M)
     exec(b19.replace("FINAL_TEST = False", "FINAL_TEST = True"), nb)
     assert set(nb["paired"].index) == {"dp_adpmeta_eps2__v4", "dp_adpmeta_eps2__v4  vs fixed_proj"}
 
