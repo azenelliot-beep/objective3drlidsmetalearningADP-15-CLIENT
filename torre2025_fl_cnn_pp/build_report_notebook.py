@@ -369,7 +369,8 @@ for m, color, label in (("without_pp", BLUE, "Without PP"), ("with_pp", AQUA, "W
     ax.annotate(f"{label}: {curves.mean(0)[-1]:.1f} %", (it[-1], curves.mean(0)[-1]), xytext=(6, 0),
                 textcoords="offset points", va="center", color=INK, fontsize=9)
 ax.axhline(98.31, color=ORANGE, linewidth=1.5, linestyle="--")
-ax.annotate("Paper final F-A without PP: 98.31 %", (1, 98.31), xytext=(0, 4), textcoords="offset points", color=INK, fontsize=9)
+ax.annotate("dashed line: paper final F-A without PP, 98.31 %", (5, 98.31), xytext=(0, -32), textcoords="offset points",
+            color=INK, fontsize=9)
 ax.set_xlabel("FL iteration", color=MUTED); ax.set_ylabel("Federated accuracy (%)", color=MUTED)
 ax.set_xticks(range(1, 11)); ax.grid(axis="y", color="#e6e5e1"); ax.spines[["top", "right"]].set_visible(False)
 ax.set_xlim(0.7, 12.8); ax.legend(frameon=False, loc="lower right")
@@ -397,16 +398,77 @@ pp_rows.sort(key=lambda t: t[1])
 fig, ax = plt.subplots(figsize=(9, 3.6))
 ax.barh([n for n, _ in pp_rows], [v for _, v in pp_rows], color=AQUA, height=0.6, zorder=2)
 for i, (_, v) in enumerate(pp_rows):
-    ax.annotate(f"{v:.1f}", (v, i), xytext=(4, 0), textcoords="offset points", va="center", color=INK, fontsize=9)
+    inside = v > 80                                    # keep the label clear of the dashed paper line
+    ax.annotate(f"{v:.1f}", (v, i), xytext=(-4 if inside else 4, 0), textcoords="offset points", va="center",
+                ha="right" if inside else "left", color="white" if inside else INK, fontsize=9)
 ax.axvline(PAPER_OVERALL["ton_iot"][3], color=ORANGE, linestyle="--", linewidth=1.5)
-ax.annotate(f"paper F1 {PAPER_OVERALL['ton_iot'][3]:.2f}", (PAPER_OVERALL["ton_iot"][3], len(pp_rows) - 0.5),
-            xytext=(-4, 0), textcoords="offset points", ha="right", color=INK, fontsize=9)
+ax.set_ylim(-0.6, len(pp_rows) + 0.2)
+ax.annotate(f"paper F1 {PAPER_OVERALL['ton_iot'][3]:.2f}", (PAPER_OVERALL["ton_iot"][3], len(pp_rows) - 0.15),
+            xytext=(-4, 0), textcoords="offset points", ha="right", va="center", color=INK, fontsize=9)
 ax.set_xlim(0, 105); ax.set_xlabel("Overall F1 (%) with PP", color=MUTED)
 ax.grid(axis="x", color="#e6e5e1", zorder=0); ax.spines[["top", "right"]].set_visible(False)
 ax.set_title("Figure 3. F1 with PP for each ablation (seed 42)", loc="left", color=INK, fontsize=10)
 plt.tight_layout(); plt.show()"""
 
-DISCUSSION_PLACEHOLDER = "## 8. Discussion\n\n(written after execution)"
+DISCUSSION_PLACEHOLDER = """## 8. Discussion
+
+All numbers below are from the outputs above (TON-IoT, full protocol, seeds 42, 1 and 2).
+
+### 8.1 What reproduces
+- **Detection without PP.** Seed 42 gives A 99.58 / P 96.42 / R 92.97 / F1 94.37. The paper reports
+  99.63 / 96.48 / 93.18 / 94.45, so every metric is within 0.25 points.
+  - Over 3 seeds the result is 99.55 ± 0.04 / 96.27 ± 0.44 / 89.70 ± 3.08 / 91.17 ± 3.14.
+  - The spread comes almost entirely from **MITM**, which has only 1,043 rows (287 test rows). Its F1 is 79.3 on seed
+    42 but 48.6 on average. The paper also names MITM as its weak class (F1 74.09, recall 61.0).
+- **Per class (Table 3).** Most classes are within ±5 F1 of the paper.
+  - Ours is higher for Reconnaissance (+2.3) and Backdoor (+3.9).
+  - Ours is lower for DDoS (−3.9), DoS (−3.4) and XSS (−5.1).
+- **FL accuracy without PP (Table 11).** The final local / federated accuracy is 97.50 / 97.72 %. The paper reports
+  98.16 / 98.31 %.
+- **The dataset is the paper's.** The 461,043 rows and the class counts match Table 1 exactly.
+
+### 8.2 What does not reproduce
+- **Accuracy with PP (Table 12).** At λ = 0.1 (the paper's worked example), the federated accuracy falls to
+  73.79 ± 2.22 % and F1 to 32.22 ± 5.79. The paper reports F-A 98.20 % and an "almost unnoticeable" change.
+  - The cause is the noise that stays in the federated model after each client removes its own share. It is about
+    0.03 per weight, which is enough to wipe out several attack classes (Password F1 8.2, XSS 8.7, MITM 1.2).
+  - With **λ = 0.01**, F1 recovers to 91.95 and F-A to 96.89 %, close to the paper. The paper's numbers are therefore
+    consistent with a much smaller noise scale than its example. The paper reports neither Δ nor ε, so this cannot be
+    confirmed.
+- **Convergence.** No client ever met the 0.0005 tolerance (0 of 12 runs, with or without PP), so all clients ran 10
+  iterations. The paper reports convergence at iteration 9.25 on average. Adam keeps moving the weights by more than
+  0.0005 per iteration even at about 98 % accuracy, so the rule as specified does not trigger on this data.
+- **Computation-time overhead.** The overhead of PP here is not measurable: CCT is 3.62 vs 3.56 s and TFD is
+  19.33 vs 19.41 s. The paper reports +27 % CCT and +12 % TFD on TON-IoT. Absolute times also differ (hardware), so
+  timing should not be compared.
+
+### 8.3 What the ablations show
+- **Feature scaling is required.** Without it (literal §4.2), the CNN predicts almost only Normal (F1 7.97 without
+  PP). The paper's results imply that some scaling was used.
+- **BatchNorm makes the model sensitive to the DP noise.**
+  - Algorithm 1 as printed (no BatchNorm or Dropout) is weaker without PP (F1 83.27) but better with PP
+    (46.83 vs 35.00).
+  - Exchanging only the Conv1D layer behaves much like the default (91.71 without PP, 41.05 with PP).
+- **Two alternative readings of the DP layer are worse.**
+  - Subtracting the full own noise gives F1 31.17.
+  - λ = Δ/ε with ε = 1 gives F1 19.57.
+
+### 8.4 Assessment of the privacy claims
+- **The "HE" layer is not homomorphic.** The server decrypts every client's model before averaging, so it protects
+  nothing against the server.
+- **The DP layer gives no formal guarantee.** No ε is reported, and there is no clipping (unbounded sensitivity).
+  It also trades accuracy for noise in a way the paper does not report.
+- **The DH layer works.** It is a pairwise-masking (secure-aggregation) scheme: the server only learns the sum, and
+  the masks cancel exactly (measured residual 3.6e-11 above, float rounding).
+
+### 8.5 Limitations of this reimplementation
+- **One dataset.** Only TON-IoT was run, not the paper's other six datasets.
+- **Unreported details** were filled in as assumptions; Section 2 lists them, with ablations for the important ones.
+- **Not bit-reproducible with PP.** The ECDH keys come from cryptographic randomness, which cannot be seeded, and the
+  resulting float64 rounding differences are amplified by training. An earlier execution of the same configuration
+  gave F1 35.63 ± 6.59 with PP, against 32.22 ± 5.79 here. The conclusions are the same. Results without PP are
+  bit-identical across executions.
+- **Duplicates kept.** The 11,071 duplicate rows are kept, as in the paper, which may inflate test scores slightly."""
 
 
 def build():
