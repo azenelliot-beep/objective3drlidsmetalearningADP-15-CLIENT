@@ -106,7 +106,8 @@ def test_boost_pipeline_end_to_end(nb, small_cfg, restore, binary, tmp_path, mon
 
 def test_boost_stage_config(nb, monkeypatch):
     src = next(s for s in notebook_cells() if s.startswith("# BLOCK 18b "))
-    assert 'STAGE = "boost"' in src
+    assert '"boost"' in src
+    src = re.sub(r'^STAGE = ".*"$', 'STAGE = "boost"', src, flags=re.M)
     saved = dict(nb["CFG"]); calls = []
     monkeypatch.setitem(nb, "run_all", lambda exps, seeds: calls.append((dict(nb["CFG"]), nb["NUM_CLIENTS"],
                                                                          nb["action_dim"], exps, seeds)))

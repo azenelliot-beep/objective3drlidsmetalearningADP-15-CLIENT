@@ -13,7 +13,7 @@
 #     half B and vice versa). The original argmax numbers are always reported next to the calibrated ones.
 #     CALIB_TEST = True scores the test set ONCE with the validation tau (a second, disclosed, evaluation-only use of
 #     the test set; nothing is retrained or re-selected from it).
-CALIB_TAG = "bst10,bstbin"         # comma-separated stage tags to evaluate ("final", "v3q", "drq", ...)
+CALIB_TAG = "enhw,enh"         # comma-separated stage tags to evaluate ("final", "v3q", "drq", ...)
 CALIB_TEST = False                  # True = disclosed, evaluation-only second use of the test set (see header)
 WEAK = ["backdoor", "mitm", "ransomware"]
 N_IDX = class_names.index("normal")            # re-set per run below (binary runs have 2 classes)

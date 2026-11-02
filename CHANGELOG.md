@@ -328,3 +328,25 @@ What this is not: both methods get the same lift, so this is not evidence that A
 pre-registered rule (ADP >= fixed + 2 val macro-F1, FAR <= 10%) is unchanged and is applied per task.
 Tests: `tests/test_boost.py` (identity/restore, binary mapping, public/private disjoint, RNG not shifted,
 end-to-end budget, 18d on boost tags, stage config).
+
+## Enhanced stage "enh" - required framework, more accuracy for the same epsilon (2026-11-02, code done, awaiting run)
+Files: `cells/block17g_enh_adpmeta_v6.py` (new), 18a (CFG `ENH`, `SERVER_MOMENTUM`, `SERVER_EMA`, `LR_ACTIONS`;
+dispatch to `_run_enh`), 18b (default `STAGE = "enh"`; stages `enh`, `enh_final`), 18d (`CALIB_TAG = "enhw,enh"`),
+19 (`TEST_TAG = "enh"`, FINAL_TEST stays False), `tests/test_enh.py`.
+Required framework unchanged: 15 clients, 20 rounds, agreed preprocessing, DDQN (TD loss), FedProx mu 0.01,
+record-level local DP-SGD + Opacus RDP accountant, ADP with a meta-learned controller.
+Changes, all fixed BEFORE any run (no tuning on validation or test):
+1. Privacy fix: `WEIGHTS_FROM = "val"` - reward class weights from validation counts; nothing computed from the
+   private training data is used outside DP (was known problem 3).
+2. Server momentum 0.5 (FedAvgM) and server EMA 0.8 of the global model (the EMA model is evaluated, selected and
+   saved). Both only process already-privatised client models, so epsilon is unchanged.
+3. ADP-Meta v6 (`ADP_ACTIONS = "lr_clip"`): the frozen meta-learned controller picks a learning-rate multiplier
+   {0.5, 1, 2} and a clip multiplier {0.5, 1, 2} each round at the FIXED noise schedule. Neither changes epsilon.
+   Meta-training = v3 twin-baseline scheme on validation half A (reward on half B), 12 episodes at eps 8 (150-min cap).
+   Rationale: v2-v4 only moved noise between rounds, which cannot beat an even split on static data.
+dp_fixed and dp_adpmeta run through the same episode with the same seed reset: a controller that always answers
+(1, 1) reproduces dp_fixed exactly (tested), so the comparison is exactly paired.
+Runs (stage `enh`, seed 0, eps 8): `enhw` = fixed noise with the weights fix only (ablation); `enh` = fixed noise
+and ADP-Meta v6 with all changes. Reference: final-stage fixed noise, seed 0, val macro-F1 49.01.
+Pre-registered rule unchanged: ADP-Meta v6 >= fixed + 2 val macro-F1 (FAR <= 10%) -> then `enh_final`
+(3 seeds, eps 8/3/1, no-DP baselines) and one Block 19 test run.

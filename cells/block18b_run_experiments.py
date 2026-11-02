@@ -1,11 +1,12 @@
 # BLOCK 18b (v4): Run experiments (VALIDATION only). Finished runs are skipped, so re-running resumes.
-# Default STAGE = "boost" (Block 17f): same four pillars (DDQN, FedProx, record-level local DP + RDP accounting,
-# ADP-Meta v2 with meta-training) and the Chapter 6 FINAL settings, plus: 5 larger clients instead of 15 and a 5%
-# PUBLIC slice of the training data used once, without DP, to pre-train the DDQN (disclose: that slice is unprotected).
-# Run twice: 10-class task (tag "bst10") and binary attack/normal task (tag "bstbin", reported ALONGSIDE the 10-class
-# results). Fixed noise vs ADP-Meta, seed 0, eps 8 (~2-3 h on a T4). Block 18d then calibrates them (validation only).
-# Other stages stay available unchanged: "drift_quick", "v3_quick", "calib", "final", "v3_val", "v4_quick", ...
-STAGE = "boost"
+# Default STAGE = "enh" (Block 17g) - REQUIRED FRAMEWORK: 15 clients, 20 rounds, agreed preprocessing, DDQN, FedProx,
+# record-level local DP-SGD + Opacus RDP accounting, ADP with a meta-learned controller. Changes (fixed before running):
+# reward weights from validation counts (no private statistic outside DP), server momentum 0.5 and server EMA 0.8
+# (post-processing, epsilon unchanged), ADP-Meta v6 = meta-learned learning-rate x clip schedule at the fixed noise
+# schedule. Runs: "enhw" = fixed noise with the weights fix only (ablation), "enh" = fixed noise and ADP-Meta v6 with
+# everything, seed 0, eps 8 (~3-4 h on a T4). Then Block 18c/18d. If ADP >= fixed + 2 val macro-F1: stage "enh_final".
+# Other stages unchanged: "final", "boost" (5 clients + public slice: NOT the required framework), "v3_quick", ...
+STAGE = "enh"
 
 DP8 = [("dp_fixed", 8.0)]
 C0 = [("", {}, [0], [("fedavg_np", None), ("fedprox_np", None), ("dp_clip_nonoise", None),
@@ -45,7 +46,19 @@ V3Q_CFG = V3_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META
 DRIFT_CFG = V3_CFG | dict(DRIFT=True, ADP_ACTIONS="drift", META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2,
                           META_TIME_LIMIT_MIN=180)
 BOOST = dict(NUM_CLIENTS_DP=5, PUBLIC_FRAC=0.05)
+# Enhanced stage (Block 17g) - REQUIRED FRAMEWORK (15 clients, 20 rounds, agreed preprocessing). Settings fixed
+# before any run: weights from validation counts, server momentum 0.5, server EMA 0.8, ADP-Meta v6 (lr x clip).
+ENH_W = FINAL_CFG | dict(WEIGHTS_FROM="val")                              # ablation: privacy fix only
+ENH_CFG = ENH_W | dict(ENH=True, SERVER_MOMENTUM=0.5, SERVER_EMA=0.8, ADP_ACTIONS="lr_clip")
+ENHQ_CFG = ENH_CFG | dict(META_EPS=(8.0,), ADP_META_EPISODES=12, TWIN_POOL=2, META_TIME_LIMIT_MIN=150)
+ENHF_CFG = ENH_CFG | dict(ADP_META_EPISODES=24, TWIN_POOL=4)               # META_EPS = (8, 3, 1)
 STAGES = {
+    "enh": [("enhw", ENH_W, [0], [("dp_fixed", 8.0)]),
+            ("enh", ENHQ_CFG, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
+    "enh_final": [("enhf", ENHF_CFG, [0, 1, 2], [
+        ("fedavg_np", None), ("fedprox_np", None),
+        ("dp_fixed", 8.0), ("dp_adpmeta", 8.0), ("dp_fixed", 3.0), ("dp_adpmeta", 3.0),
+        ("dp_fixed", 1.0), ("dp_adpmeta", 1.0)])],
     "boost": [("bst10", FINAL_CFG | BOOST, [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)]),
               ("bstbin", FINAL_CFG | BOOST | dict(BINARY=True), [0], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)])],
     "boost3": [("bst10", FINAL_CFG | BOOST, [0, 1, 2], [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)]),

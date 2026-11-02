@@ -55,6 +55,11 @@ CFG = dict(
     NUM_CLIENTS_DP=None,            # None = 15 clients
     PUBLIC_FRAC=0.0,                # share of training records treated as public for non-private pre-training
     PRETRAIN_STEPS=2000,
+    # enhanced stage (Block 17g): defaults = previous behaviour
+    ENH=False,                      # True -> dp_fixed / dp_adpmeta run through enh_episode (Block 17g)
+    SERVER_MOMENTUM=0.0,            # FedAvgM momentum on the server (post-processing, no privacy cost)
+    SERVER_EMA=0.0,                 # EMA of the global model = the evaluated / selected model (post-processing)
+    LR_ACTIONS=(0.5, 1.0, 2.0),     # ADP-Meta v6: learning-rate multipliers chosen each round
 )
 _DEFAULT_CFG = dict(CFG)               # Block 18b resets CFG to these defaults before applying a stage
 
@@ -228,6 +233,8 @@ def run_dp_pipeline(method, seed, eps_budget=None, C=None):
     else:
         base = [0.0] * len(clients)
     fast = make_fast(clients)
+    if CFG.get("ENH"):                                             # enhanced stage + ADP-Meta v6 (Block 17g)
+        return _run_enh(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast)
     if CFG.get("DRIFT"):                                           # v5 drift scenario (Block 17e)
         assert method in ("dp_fixed", "dp_adpmeta"), f"{method} is not defined for the drift scenario"
         return _run_drift(name, method, seed, eps_budget, C, g, clients, parts, rng, mu, fast,

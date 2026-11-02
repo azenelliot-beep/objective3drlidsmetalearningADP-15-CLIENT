@@ -16,6 +16,7 @@ ADP-Meta (adaptive DP with a meta-learned controller)**.
 | Experiment (stage tag) | 20 rounds | 15 clients | Agreed preprocessing | DDQN | FedProx | ADP + meta | Verdict |
 |---|---|---|---|---|---|---|---|
 | **Final, ADP-Meta v2 (`final`)** | yes | yes | yes | yes | yes | yes | **Meets the requirement. Use these as the thesis results.** |
+| **Enhanced, ADP-Meta v6 (`enhw`, `enh`; Block 17g)** | yes | yes | yes | yes | yes | v6 controller (lr × clip) | Meets it; code done and tested, **not run yet** (CHANGELOG, last entry) |
 | Calibration (`final`, Block 18d) | yes | yes | yes | yes | yes | yes | Meets it; post-hoc decision threshold only, evaluation-only |
 | ADP-Meta v3 (`v3q`) | yes | yes | yes | yes | yes | v3 controller | Meets it (ADP variant); exploratory, 1 seed |
 | ADP-Meta v4 (`v4q`) | yes | yes | yes | yes | yes | v4 + gradient projection | Meets it (variant); rejected |
@@ -23,8 +24,8 @@ ADP-Meta (adaptive DP with a meta-learned controller)**.
 | **Boost (`bst10`)** | yes | **no: 5** | **no: 5% public slice pre-trained without DP** | yes | yes | yes | **Deviates; do not report as the final framework** |
 | **Boost binary (`bstbin`)** | yes | **no: 5** | **no: public slice + binary labels** | yes | yes | yes | **Deviates** |
 
-**WARNING:** the notebooks currently default to `STAGE = "boost"` in Block 18b, which is the non-compliant setting.
-The required framework is `STAGE = "final"`. Changing the default is left to the review.
+The notebooks now default to `STAGE = "enh"` (required framework). `STAGE = "final"` reproduces the reported final
+results; `"boost"` is the non-compliant experiment.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 1. Files
@@ -235,7 +236,8 @@ The pre-registered rule (ADP ≥ fixed + 2 validation macro-F1) is **not met**. 
    single-seed comparisons are unreliable.
 8. **Non-private baseline differs from the DP runs:** FedProx without DP (92.8%) is below FedAvg without DP (95.2%)
    at μ = 0.01, 20 rounds.
-9. **The default stage is `boost`, not `final`** (see section 0).
+9. Fixed since the first handoff: the default stage is now `enh` (compliant), and the enhanced stage uses
+   `WEIGHTS_FROM="val"`, which closes problem 3 for its runs.
 
 **Unsuccessful or abandoned experiments:**
 

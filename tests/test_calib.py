@@ -94,7 +94,7 @@ def test_summary_and_test_cells_ignore_non_run_json(nb, small_cfg, tmp_path, mon
     exec(block("# BLOCK 18c "), nb)
     exec(calib_src(), nb)
     assert list(nb["cal_df"]["run"]) == ["dp_fixed_eps2__final"]
-    exec(block("# BLOCK 19 ").replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "bst10,bstbin"', 'TEST_TAG = "final"'), nb)
+    exec(block("# BLOCK 19 ").replace("FINAL_TEST = False", "FINAL_TEST = True").replace('TEST_TAG = "enh"', 'TEST_TAG = "final"'), nb)
     assert list(nb["tdf"]["run"]) == ["dp_fixed_eps2__final"]
 
 
@@ -114,7 +114,7 @@ def test_default_is_v3_quick_with_frozen_v3_design(nb, monkeypatch):
     assert cfg["CLIP_ACTIONS"] == (0.5, 1.0, 2.0) and cfg["META_TIME_LIMIT_MIN"] == 180
     assert exps == [("dp_fixed", 8.0), ("dp_adpmeta", 8.0)] and seeds == [0]
     b18d = block("# BLOCK 18d ")
-    assert 'CALIB_TAG = "bst10,bstbin"' in b18d and "CALIB_TEST = False" in b18d
+    assert 'CALIB_TAG = "enhw,enh"' in b18d and "CALIB_TEST = False" in b18d
 
 
 def test_v3_meta_time_limit(nb, small_cfg):
