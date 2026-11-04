@@ -56,6 +56,12 @@ def main():
     OUT.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
     print(f"wrote {OUT.relative_to(ROOT)} ({len(cells)} cells)")
     build_colab(nb)
+    # Ready-to-run Chapter 6 FINAL model (the reported results): stage "final", 18d/19 on tag "final"
+    fin = variant(nb, stage="final", calib_tag="final", test_tag="final")
+    out_fin = OUT.with_name("chapter6_final.ipynb")
+    out_fin.write_text(json.dumps(fin, indent=1, ensure_ascii=False) + "\n")
+    print(f"wrote {out_fin.relative_to(ROOT)}")
+    build_colab(fin, "chapter6_final_colab.ipynb")
     # Ready-to-run variant for the eps = 16 follow-up stage (no manual edits needed)
     import re
     for c in nb["cells"]:
@@ -75,7 +81,23 @@ def main():
 COLAB_RESULTS = "/content/drive/MyDrive/Elham/results_ch6"
 
 
-def build_colab(nb):
+def variant(nb, *, stage, calib_tag, test_tag):
+    """Copy of the notebook with the default stage and the 18d / 19 tags preset (FINAL_TEST stays False)."""
+    import re
+    out = copy.deepcopy(nb)
+    for c in out["cells"]:
+        src = "".join(c["source"])
+        if src.startswith("# BLOCK 18b "):
+            src = re.sub(r'^STAGE = ".*"$', f'STAGE = "{stage}"', src, flags=re.M)
+        elif src.startswith("# BLOCK 18d "):
+            src = re.sub(r'^CALIB_TAG = "[\w,]*"', f'CALIB_TAG = "{calib_tag}"', src, flags=re.M)
+        elif src.startswith("# BLOCK 19 "):
+            src = re.sub(r'^TEST_TAG = "[\w,]*"', f'TEST_TAG = "{test_tag}"', src, flags=re.M)
+        c["source"] = src.splitlines(keepends=True)
+    return out
+
+
+def build_colab(nb, name="chapter6_v4_colab.ipynb"):
     """Colab variant: Colab installs, Drive mount, dataset + results on Google Drive. Everything else identical."""
     cells = []
     for c in nb["cells"]:
@@ -95,7 +117,7 @@ def build_colab(nb):
     out = copy.deepcopy(nb)
     out["cells"] = cells
     out.setdefault("metadata", {})["accelerator"] = "GPU"
-    path = OUT.with_name("chapter6_v4_colab.ipynb")
+    path = OUT.with_name(name)
     path.write_text(json.dumps(out, indent=1, ensure_ascii=False) + "\n")
     print(f"wrote {path.relative_to(ROOT)}")
 
