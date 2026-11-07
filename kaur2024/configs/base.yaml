@@ -1,0 +1,73 @@
+# Base configuration for the Kaur (2024) reimplementation on TON_IoT.
+# Every value is tagged: [PAPER] (with citation), [GAP-FILL Gn] (see kaur2024/SPEC.md, approved
+# by the user 2026-11-07), or [EXTRA]. Experiment configs override only the keys they change.
+
+data:
+  # [GAP-FILL G1] file and location (Kaggle input path; override with --csv)
+  csv: /kaggle/input/datasets/fadiabuzwayed/ton-iot-train-test-network/TON_IoT_Train_Test_Network.csv
+  csv_sha256: 65d5465df1809b984fd10e4703bc9c012d1aefd11803773856364216f0a3520d   # [GAP-FILL G1]
+  partitions_dir: kaur2024/results/partitions        # [EXTRA] written by src/phase1_data.py (G9)
+  target: type                                        # [GAP-FILL G2]
+  drop_cols: [ts, src_ip, dst_ip, src_port, dst_port, label]   # [GAP-FILL G2]
+  high_cardinality: 50                                # [GAP-FILL G2] >50 unique in TRAIN -> drop
+  clip_test: true                                     # [GAP-FILL G2d] clip min-max-scaled test to [0,1]
+
+partition: iid            # iid | noniid_dir0.5      # [GAP-FILL G8] (overridden per experiment)
+n_clients: 15             # [GAP-FILL C1] Table VIII protocol (Edge-IIoT in the paper) applied to TON_IoT
+
+model:                    # [PAPER] Table I(B) p.7 and Sec. IV-B p.6
+  gru_layers: 2           # [PAPER] Table I(B)
+  hidden: 128             # [PAPER] Table I(B)
+  dropout: 0.3            # [PAPER] Table I(B); placement [GAP-FILL G4]
+  n_classes: 10           # [PAPER] Table II
+  seq_len: 1              # [GAP-FILL G3] each record is a length-1 sequence
+
+local:
+  optimizer: adam         # [PAPER] Table I(B)
+  lr: 0.2                 # [PAPER] Fig. 4 (eta = 0.2); see SPEC C3
+  adam_betas: [0.9, 0.999]  # [GAP-FILL G19] framework defaults (Keras/PyTorch), not stated
+  adam_eps: 1.0e-7        # [GAP-FILL G19] Keras default epsilon (the paper used Keras, Table I(A))
+  reset_optimizer_each_round: true  # [GAP-FILL G19] fresh local optimizer every round
+  batch_size: 20          # [PAPER] Fig. 4 (Lambda = 20)
+  epochs: 5               # [PAPER] Table I(B) "Local Epochs 5"
+  loss: cross_entropy     # [GAP-FILL G4] softmax CE, lambda = 0 (no Eq. 21 regulariser)
+  partial_last_batch: true  # [GAP-FILL G19] Keras default: last batch may be smaller
+
+fl:
+  rounds: 100             # [PAPER] Table I(B)
+  aggregation: weighted_by_size   # [PAPER] Eqs. 18, 25
+  eval_rounds: [1, 50, 100]       # [PAPER] Table VIII (1, 50) + [EXTRA] 100 (G15)
+  save_model_rounds: [50, 100]    # [EXTRA]
+
+selection:
+  method: dqn             # dqn | random | all   (overridden per experiment)
+  k: 8                    # [GAP-FILL G5] top-8 of 15
+  power_levels_dbm: [10, 20, 30]  # [GAP-FILL G5]
+  fedavg_power_dbm: 30    # [GAP-FILL G12] FedAvg: all clients at max power
+
+dqn:
+  hidden: [64, 64]        # [GAP-FILL G6]
+  lr: 1.0e-3              # [GAP-FILL G6]
+  gamma: 0.99             # [PAPER] Fig. 5 p.9 (SPEC C2)
+  buffer: 10000           # [PAPER] Table I(B)
+  batch: 32               # [GAP-FILL G6]
+  target_sync_every: 10   # [GAP-FILL G6] in gradient updates
+  eps_start: 1.0          # [GAP-FILL G5]
+  eps_end: 0.05           # [GAP-FILL G5]
+  eps_decay_rounds: 50    # [GAP-FILL G5] linear, round 1 -> round 50
+  updates_per_round: 1    # [GAP-FILL G6]
+
+channel:                  # [PAPER] Sec. V-A p.9 unless tagged
+  n0_dbm_per_hz: -174     # [PAPER] N0 = -174 dBm; read as density [GAP-FILL G11]
+  max_power_dbm: 30       # [PAPER]
+  b_max_hz: 1.0e+8        # [PAPER] 100 MHz
+  path_loss: 1.0e-3       # [PAPER] average path loss, Rayleigh fading
+  quant_bits: 16          # [PAPER] 16-bit quantisation
+  cpu_hz: 1.1e+9          # [PAPER] 1100 MHz
+  cycles_per_bit: 20      # [PAPER] varsigma = 20 cycles/bit
+  kappa_cpu: 1.0e-28      # [GAP-FILL G11] effective switched capacitance (absent in paper)
+  k_l: 5                  # [GAP-FILL G10] K_L = local epochs
+  state_snr_power_dbm: 30 # [GAP-FILL G18] SNR in the state is computed at max power ...
+  # ... and bandwidth B_max / k, before the action is chosen [GAP-FILL G18]
+
+out_root: kaur2024/results   # [EXTRA]

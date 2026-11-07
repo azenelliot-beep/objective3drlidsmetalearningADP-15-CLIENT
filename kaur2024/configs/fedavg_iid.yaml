@@ -1,0 +1,5 @@
+# FedAvg baseline [PAPER, baseline [10] p.9]: all 15 clients every round, no DRL, IID
+inherit: base.yaml
+name: fedavg_iid
+partition: iid
+selection: {method: all}       # [PAPER] 'All the device participating'; power [GAP-FILL G12]

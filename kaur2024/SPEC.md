@@ -6,7 +6,13 @@ PDF: `kaur2024/paper/objective2A.pdf` (13 pages, author's accepted version). Pag
 Everything for this baseline lives under `kaur2024/`. The repo's existing Chapter 6 code and
 results (`cells/`, `notebooks/`, `original/`, `tests/`, `results/`) are not touched.
 
-Status: **Phase 1 done; waiting for your approval.**
+Status: **Phase 2 code written and tested on synthetic data; waiting for the GPU smoke test on Kaggle.**
+User decisions (2026-11-07): IID and non-IID both run on TON_IoT with 15 clients, labelled as
+the user's protocol, not the paper's (C1). Gap-fills G1-G17 are approved as proposed, to be
+changed only if the code fails or behaves suspiciously. Energy constants (G11) are not studied
+further. Training runs on a Kaggle GPU.
+
+Phase 1 status:
 - Paper verification (§1) and X4: done here.
 - Data inspection, split, partitions and X3: `kaur2024/src/phase1_data.py`, run by you on Kaggle on
   2026-11-07. The CSV is `TON_IoT_Train_Test_Network.csv`, sha256
@@ -313,3 +319,38 @@ What this means [Likely]:
   about twice as long.
 - X1 + X2 total 30 runs, so on the order of **50-80 CPU-hours**. A GPU on Kaggle would be much
   faster.
+
+---
+
+## 6. Phase 2 implementation notes (new [GAP-FILL] items, same approval rule)
+
+**G18 SNR in the DQN state.** The state (Eq. 6) is built before the action, so its SNR uses
+maximum power (30 dBm) and bandwidth B_max / 8. The SNR used in Eq. 3 then uses the chosen
+power and B_max / (number selected).
+
+**G19 local optimiser details.**
+- Adam with β = (0.9, 0.999) and ε = 1e-7 (the Keras defaults; the paper used Keras, Table I(A)).
+- A fresh optimiser for each client in each round.
+- The last batch of an epoch may be smaller than 20 (Keras default).
+
+**G20 Eq. 4 for unselected devices.** C_training = Σ over selected devices of
+(E_data + E_comp + E_comm) / N, with N = 15. Unselected devices use no energy in that round.
+
+**Speed-up (implementation only, no modelling change).** All clients selected in a round train
+in parallel as one stacked tensor on the GPU, using the exact equations of `torch.nn.GRU`. Tests
+in `kaur2024/tests/test_kaur_core.py` check that:
+- the stacked forward pass equals `nn.GRU` + `nn.Linear` for sequence lengths 1 and 3;
+- the stacked Adam equals `torch.optim.Adam`;
+- a client trained together with others ends with exactly the same weights as when trained alone,
+  including clients of different sizes;
+- a small client gets exactly its own number of steps;
+- the training path learns a learnable synthetic task (at lr 0.01; this test only checks the code
+  works and says nothing about the paper's setting).
+
+**Expected behaviour to watch for (not changed, reported).**
+- [Likely] With lr = 0.2, Adam may collapse to predicting "normal" (61.4% of test rows) or
+  diverge. `fl.py` stops on non-finite weights and logs the largest predicted-class share every
+  round. Per the task rules, a divergence or collapse is reported to you, not fixed.
+- [Likely] Under Eq. 8 the reward is dominated by energy, and energy grows with D_i. In the
+  non-IID setting the DQN will therefore learn to prefer **small** clients. This is the paper's
+  reward as written; X2 (random selection) shows what it costs or gains.

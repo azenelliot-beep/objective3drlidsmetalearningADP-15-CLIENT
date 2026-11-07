@@ -1,0 +1,5 @@
+# X2 [EXTRA]: random top-8 selection (random power), IID; isolates the DQN's contribution
+inherit: base.yaml
+name: x2_random_iid
+partition: iid
+selection: {method: random}    # [EXTRA]

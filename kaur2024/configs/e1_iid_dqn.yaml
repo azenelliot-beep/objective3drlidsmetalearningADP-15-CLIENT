@@ -1,0 +1,5 @@
+# E1 [PAPER method; GAP-FILL C1 protocol]: IID, 15 clients, DQN top-8 selection
+inherit: base.yaml
+name: e1_iid_dqn
+partition: iid                 # [GAP-FILL G8/G9]
+selection: {method: dqn}       # [PAPER] Sec. III-B; details [GAP-FILL G5, G6]

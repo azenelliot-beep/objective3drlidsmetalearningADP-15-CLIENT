@@ -1,0 +1,5 @@
+# FedAvg baseline [PAPER, baseline [10] p.9]: all 15 clients every round, no DRL, non-IID
+inherit: base.yaml
+name: fedavg_noniid
+partition: noniid_dir0.5
+selection: {method: all}

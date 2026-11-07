@@ -1,0 +1,5 @@
+# X2 [EXTRA]: random top-8 selection (random power), non-IID
+inherit: base.yaml
+name: x2_random_noniid
+partition: noniid_dir0.5
+selection: {method: random}    # [EXTRA]

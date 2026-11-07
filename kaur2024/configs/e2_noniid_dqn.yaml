@@ -1,0 +1,5 @@
+# E2 [PAPER method; GAP-FILL C1 protocol]: non-IID Dirichlet(0.5), 15 clients, DQN top-8
+inherit: base.yaml
+name: e2_noniid_dqn
+partition: noniid_dir0.5       # [GAP-FILL G8]
+selection: {method: dqn}
