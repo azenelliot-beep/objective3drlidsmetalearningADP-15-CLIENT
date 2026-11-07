@@ -6,11 +6,14 @@ PDF: `kaur2024/paper/objective2A.pdf` (13 pages, author's accepted version). Pag
 Everything for this baseline lives under `kaur2024/`. The repo's existing Chapter 6 code and
 results (`cells/`, `notebooks/`, `original/`, `tests/`, `results/`) are not touched.
 
-Status: **Phase 1, partly done.**
-- Paper verification (§1) and X4: done.
-- Data inspection, split, partitions and X3: script written (`kaur2024/src/phase1_data.py`) and
-  smoke-tested on synthetic data only. **Not yet run on the real CSV**, because the CSV is not in
-  this container.
+Status: **Phase 1 done; waiting for your approval.**
+- Paper verification (§1) and X4: done here.
+- Data inspection, split, partitions and X3: `kaur2024/src/phase1_data.py`, run by you on Kaggle on
+  2026-11-07. The CSV is `TON_IoT_Train_Test_Network.csv`, sha256
+  `65d5465df1809b984fd10e4703bc9c012d1aefd11803773856364216f0a3520d`, 461,043 rows x 45 columns.
+  The printed reports are copied into `results/phase1_data_report.md` and
+  `results/extra/x3_leakage.md`. The index files (`partitions/*.npy`, `*.npz`) are still only on
+  Kaggle; the script recreates them identically from the same CSV and seed.
 
 Tags: [PAPER] stated in the paper, [GAP-FILL] needs your approval, [EXTRA] for thesis rigour only.
 
@@ -87,19 +90,18 @@ The first block is your proposed gap-fills, amended where the PDF requires it. T
 new gaps that the code cannot run without.
 
 ### G1: data file and split  [GAP-FILL]
-- File: you pointed to `/kaggle/input/datasets/fadiabuzwayed/ton-iot-train-test-network/`. That
-  path is on your Kaggle machine, not in this container. The file there is
-  `TON_IoT_Train_Test_Network.csv`.
-- **[Likely, to be checked on the real file]** That file has 461,043 rows: 300,000 normal,
-  20,000 of each attack class, and 1,043 MITM. **If so, Table II cannot be drawn from it.**
+- File: `/kaggle/input/datasets/fadiabuzwayed/ton-iot-train-test-network/TON_IoT_Train_Test_Network.csv`
+  (sha256 above). No NaN anywhere; `-` is used for "not applicable".
+- **[Certain, from the run]** The file has 461,043 rows: 300,000 normal, 20,000 of each of the
+  nine attack classes, and 1,043 MITM. It has 45 columns; the paper says 46 features (p.7).
+  **Table II cannot be drawn from it.**
   - Table II needs 24,000 DoS, DDoS, Backdoor, Injection and Password rows (20,000 train + 4,000
     test), 23,973 Scanning and 1,052 MITM. Its total, 484,985, is larger than the whole file.
   - The paper therefore probably sampled from the full TON_IoT network data, not this subset.
 - Proposed rule (implemented in `phase1_data.py`, seed 0): for each class, take exactly Table II's
   test count at random, then up to Table II's train count from what remains. Every shortfall is
   reported.
-  - On a file with the counts above: test = 89,518 (exactly Table II); train = 371,485 (Table II
-    is 395,467).
+  - Result: test = 89,518 (exactly Table II); train = 371,485 (Table II is 395,467).
   - Six classes get 16,000 or 16,027 train rows instead of 20,000, MITM gets 584 instead of 593,
     and 40 XSS rows go unused.
 - Alternative: one stratified 80/20 split. It is simpler, but it would not match Table II's test
@@ -111,13 +113,22 @@ new gaps that the code cannot run without.
 - Any string column with more than 50 unique values is dropped instead of one-hot encoded. The
   rule is applied to **training rows only** in Phase 2. Phase 1 reports cardinality on the whole
   file, for information only.
-- The list of dropped columns will come from the real run (`results/extra/x3_leakage.md`).
-- **[Likely]** These columns will be dropped: `dns_query`, `ssl_subject`, `ssl_issuer`, `http_uri`,
-  `http_user_agent`, and possibly `http_orig_mime_types`/`http_resp_mime_types`.
-- G2b, missing values: TON_IoT writes "not applicable" as `-`. In string columns it stays as its
-  own category. Numeric columns read as text because of `-` (or NaN) get `-` mapped to 0 and an
-  indicator column, with the fit done on train only. Sec. IV-A only says "handling missing values,
-  if any".
+- **[Certain, from the run, whole-file counts]** Only two columns cross the >50 threshold and
+  are dropped: `dns_query` (14,149 unique) and `http_uri` (74). My earlier guess that the SSL and
+  user-agent columns would be dropped was wrong. `http_user_agent` has 36 values and is one-hot
+  encoded.
+  - Phase 2 recomputes this on training rows only. [Likely] The result is the same, but
+    `http_uri` (74 in the whole file) is the one to watch.
+- The remaining 25 string columns are one-hot encoded; on whole-file categories that gives 149
+  columns.
+- Kept numeric columns (14): duration, src_bytes, dst_bytes, missed_bytes, src_pkts,
+  src_ip_bytes, dst_pkts, dst_ip_bytes, dns_qclass, dns_qtype, dns_rcode, http_request_body_len,
+  http_response_body_len, http_status_code.
+- [Likely] The input width is d ≈ 163, a little lower if some categories never occur in train.
+- G2b, missing values: the file has no NaN. `-` ("not applicable") stays as its own category in
+  every string column. `http_trans_depth` and `weird_addl` look numeric, but they are text with
+  `-` and have 11 and 4 values, so they are one-hot encoded like the other string columns.
+  Sec. IV-A only says "handling missing values, if any".
 - G2c: test categories not seen in training are encoded as all zeros.
 - G2d: Eq. 19 min-max is fitted on the training rows only, and test values are clipped to [0, 1].
   The clipping is my addition. It uses no test information, but say if you would rather not clip.
@@ -263,13 +274,37 @@ Full output: `kaur2024/results/extra/x4_table5_consistency.md` (from
 - Implication for Phase 3: the paper's headline 99.95% is not a reliable target. I will compare
   against the per-class rows **and** the implied 96.47% / macro F1 95.02, and say so in REPORT.md.
 
-## 4. X3 [EXTRA]
-Implemented in `phase1_data.py`, not yet run on real data. It reports:
-- cardinality of every string column;
-- test rows whose feature vector also occurs in train, under two keys (all columns except the
-  labels, and the model features after the G2 drops);
-- those that carry a different `type` in train;
-- duplicates within train and within test.
+## 4. X3 [EXTRA]: leakage (done; full output in `results/extra/x3_leakage.md`)
+
+| Key | Test rows also in train | ...of which train has a different `type` | Dups within train / test |
+|---|---|---|---|
+| All columns except `type`/`label` (includes ts, IPs, ports) | 2,708 / 89,518 (3.03%), all normal | 0 | 8,160 / 948 |
+| Model features (after G2 drops) | **54,064 / 89,518 (60.39%)** | **8,909** | 220,061 / 49,743 |
+
+Shared test rows by class (model-feature key): normal 33,948, ransomware 3,963, backdoor 3,710,
+xss 3,484, scanning 3,117, dos 2,883, ddos 1,789, password 1,109, injection 57, mitm 4.
+
+What this means [Likely]:
+- Once identifiers and timestamps are dropped, most of the test set consists of exact copies of
+  training feature vectors. High accuracy here is largely lookup.
+  - The effect is uneven: it is almost all of ransomware (3,963 of 3,970) and backdoor test rows,
+    but almost none of injection or MITM.
+- 8,909 test rows have a feature vector that train also labels with a different class. No model
+  can be right on all of these, which caps the achievable accuracy below 100%.
+  - The exact cap depends on the label mix per vector and will be computed in Phase 2.
+- This applies equally to your own model if it is scored on the same split, so comparisons
+  between models stay fair. Absolute numbers, though, are inflated relative to unseen traffic.
+
+**G17 [GAP-FILL / EXTRA]: proposal for handling this.**
+- Do not deduplicate the core runs. The paper doesn't, and the test set must stay as in Table II.
+- Every evaluation also reports the full metric set on the **"unseen" test subset**: the 35,454
+  test rows whose model-feature vector does not occur in train. This is [EXTRA] and reported
+  separately.
+- The subset is defined from train-vs-test feature equality only, without labels or predictions,
+  so no test information enters training or any tuning.
+  - The mask is saved to `results/partitions/` in Phase 2 so your model is scored on exactly the
+    same rows.
+  - It has to be computed on the encoded features, so its size may shift slightly from 35,454.
 
 ## 5. Compute estimate (needed for Phase 2 planning)
 [Likely] On this container (4 CPUs, no GPU):
