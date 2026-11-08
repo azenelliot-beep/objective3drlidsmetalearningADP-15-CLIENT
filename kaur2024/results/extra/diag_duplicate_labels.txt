@@ -1,0 +1,14 @@
+| class | test rows | duplicated in train | of those: train majority = same class | train majority = Normal | lookup-ceiling recall |
+|---|---|---|---|---|---|
+| Normal | 55000 | 33957 | 33629 | 33629 | 0.611 |
+| Scanning | 3973 | 3117 | 3113 | 0 | 0.784 |
+| DoS | 4000 | 2883 | 2878 | 3 | 0.720 |
+| DDoS | 4000 | 1796 | 1741 | 3 | 0.435 |
+| Ransomware | 3970 | 3963 | 3661 | 218 | 0.922 |
+| Backdoor | 4000 | 3710 | 3710 | 0 | 0.927 |
+| Injection | 4000 | 57 | 22 | 2 | 0.005 |
+| XSS | 6116 | 3484 | 3058 | 4 | 0.500 |
+| Password | 4000 | 1109 | 1055 | 3 | 0.264 |
+| MITM | 459 | 4 | 2 | 0 | 0.004 |
+
+Lookup on duplicated rows alone (unseen rows counted wrong): accuracy 0.5906

@@ -409,3 +409,26 @@ Smoke test with SGD (E1, 2 rounds, `results/extra/smoke/e1_iid_dqn_sgd_lr0.2_rou
 - largest predicted-class share 0.72;
 - mean train loss 0.60;
 - about 48 s per round on 4 CPU threads.
+
+---
+
+## 8. Early finding during the core runs (2026-11-08): accuracy plateaus at ~76.7% (IID)
+
+- E1 global accuracy: 75.82% at round 1, 76.67% at round 10. The training loss is falling only
+  slowly (0.60 to 0.56).
+- At round 1, recall is 0 for Ransomware, Injection and MITM, and about 5% for DoS and Password.
+  Ransomware and Injection are mostly predicted as Normal.
+- **Not a code bug, and not a limit of the data** (`tools/diag_duplicate_labels.py`, output in
+  `results/extra/diag_duplicate_labels.txt`). 3,661 of the 3,970 Ransomware test rows have an exact
+  copy in train labelled Ransomware, so even a lookup would reach 92% recall on that class.
+- **Cause [Certain]: Eq. 19 min-max on heavy-tailed columns.** After scaling, the 99th percentile
+  of src_bytes is 1e-6, of dst_ip_bytes 1.9e-4 and of duration 7e-4; the medians are about 0. The
+  numeric features are effectively invisible to the network, which therefore works almost only from
+  the one-hot flags (proto, conn_state, service, dns_*, ...). On those flags, Ransomware
+  (tcp / OTH / service '-') overlaps a large group of Normal traffic.
+- Dropping ports (G2) also removes what is probably a strong signal for Injection, Ransomware and
+  MITM.
+- **Not changed.** Eq. 19 is [PAPER] and G2 is approved. Changing either to raise accuracy would be
+  tuning towards the paper's numbers. Both are recorded as candidate explanations for the gap to
+  Table V. A separately labelled [EXTRA] ablation (e.g. keeping ports, or log-scaling before
+  min-max) can be run later if the user asks for it.
