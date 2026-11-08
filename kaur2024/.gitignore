@@ -1,2 +1,7 @@
 data/raw/*
 !data/raw/.gitkeep
+# in-progress run outputs; final results are force-added when runs finish
+results/logs/
+results/logs_run_core.out
+results/core/
+results/extra/runs/
