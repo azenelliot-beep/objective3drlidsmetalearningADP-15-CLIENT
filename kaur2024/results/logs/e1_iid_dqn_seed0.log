@@ -1,0 +1,138 @@
+[e1_iid_dqn s0] round   1 acc 0.7582 loss 0.6035 maxshare 0.72 sel [0, 2, 5, 6, 8, 11, 12, 13] (explore) 134.47s
+[e1_iid_dqn s0] round   2 acc 0.7644 loss 0.5836 maxshare 0.71 sel [0, 1, 2, 4, 6, 8, 11, 14] (explore) 150.07s
+[e1_iid_dqn s0] round   3 acc 0.7646 loss 0.5764 maxshare 0.71 sel [1, 3, 5, 7, 10, 11, 13, 14] (explore) 126.15s
+[e1_iid_dqn s0] round   4 acc 0.7569 loss 0.5711 maxshare 0.71 sel [3, 4, 5, 8, 9, 10, 11, 12] (explore) 112.25s
+[e1_iid_dqn s0] round   5 acc 0.7651 loss 0.5662 maxshare 0.71 sel [1, 2, 3, 4, 5, 6, 8, 14] (explore) 139.59s
+[e1_iid_dqn s0] round   6 acc 0.7660 loss 0.5642 maxshare 0.71 sel [1, 3, 4, 5, 6, 9, 11, 13] (explore) 131.78s
+[e1_iid_dqn s0] round   7 acc 0.7663 loss 0.5598 maxshare 0.71 sel [0, 4, 5, 6, 7, 9, 11, 12] (explore) 132.33s
+[e1_iid_dqn s0] round   8 acc 0.7667 loss 0.5603 maxshare 0.71 sel [1, 3, 5, 6, 8, 9, 12, 13] (explore) 135.3s
+[e1_iid_dqn s0] round   9 acc 0.7667 loss 0.5566 maxshare 0.71 sel [2, 4, 6, 8, 11, 12, 13, 14] (explore) 137.35s
+[e1_iid_dqn s0] round  10 acc 0.7667 loss 0.5554 maxshare 0.71 sel [0, 1, 4, 5, 7, 8, 9, 10] (explore) 119.76s
+[e1_iid_dqn s0] round  11 acc 0.7667 loss 0.5570 maxshare 0.71 sel [2, 3, 4, 5, 8, 12, 13, 14] (explore) 141.93s
+[e1_iid_dqn s0] round  12 acc 0.7667 loss 0.5526 maxshare 0.71 sel [0, 1, 2, 5, 6, 7, 9, 10] (explore) 119.12s
+[e1_iid_dqn s0] round  13 acc 0.7667 loss 0.5515 maxshare 0.71 sel [0, 1, 4, 5, 6, 7, 11, 14] (explore) 154.04s
+[e1_iid_dqn s0] round  14 acc 0.7667 loss 0.5511 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  140.06s
+[e1_iid_dqn s0] round  15 acc 0.7667 loss 0.5508 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  133.66s
+[e1_iid_dqn s0] round  16 acc 0.7667 loss 0.5494 maxshare 0.71 sel [2, 4, 7, 8, 10, 11, 12, 14] (explore) 121.32s
+[e1_iid_dqn s0] round  17 acc 0.7667 loss 0.5505 maxshare 0.71 sel [0, 1, 2, 3, 4, 7, 8, 11] (explore) 122.11s
+[e1_iid_dqn s0] round  18 acc 0.7668 loss 0.5490 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  108.68s
+[e1_iid_dqn s0] round  19 acc 0.7667 loss 0.5485 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  121.35s
+[e1_iid_dqn s0] round  20 acc 0.7668 loss 0.5512 maxshare 0.71 sel [0, 5, 7, 8, 9, 10, 11, 13] (explore) 130.78s
+[e1_iid_dqn s0] round  21 acc 0.7667 loss 0.5481 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  122.67s
+[e1_iid_dqn s0] round  22 acc 0.7667 loss 0.5517 maxshare 0.71 sel [0, 2, 3, 4, 5, 8, 9, 10] (explore) 131.95s
+[e1_iid_dqn s0] round  23 acc 0.7667 loss 0.5474 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  119.44s
+[e1_iid_dqn s0] round  24 acc 0.7667 loss 0.5470 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  111.99s
+[e1_iid_dqn s0] round  25 acc 0.7668 loss 0.5496 maxshare 0.71 sel [0, 1, 3, 4, 7, 11, 12, 13] (explore) 131.11s
+[e1_iid_dqn s0] round  26 acc 0.7668 loss 0.5469 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  156.99s
+[e1_iid_dqn s0] round  27 acc 0.7668 loss 0.5508 maxshare 0.71 sel [1, 3, 4, 5, 6, 7, 12, 13] (explore) 118.31s
+[e1_iid_dqn s0] round  28 acc 0.7668 loss 0.5483 maxshare 0.71 sel [0, 1, 4, 5, 9, 10, 13, 14] (explore) 122.85s
+[e1_iid_dqn s0] round  29 acc 0.7668 loss 0.5468 maxshare 0.71 sel [0, 1, 2, 6, 7, 10, 11, 13] (explore) 122.15s
+[e1_iid_dqn s0] round  30 acc 0.7668 loss 0.5458 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  136.64s
+[e1_iid_dqn s0] round  31 acc 0.7668 loss 0.5461 maxshare 0.71 sel [1, 2, 4, 7, 10, 11, 12, 13] (explore) 134.33s
+/home/user/objective3drlidsmetalearningADP-15-CLIENT/kaur2024/src/dqn_selector.py:124: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  self.losses.append(float(loss))
+[e1_iid_dqn s0] round  32 acc 0.7668 loss 0.5456 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 11] (explore) 130.25s
+[e1_iid_dqn s0] round  33 acc 0.7668 loss 0.5452 maxshare 0.71 sel [1, 4, 5, 6, 7, 9, 10, 14]  138.9s
+[e1_iid_dqn s0] round  34 acc 0.7668 loss 0.5469 maxshare 0.71 sel [2, 3, 4, 5, 6, 7, 10, 14] (explore) 121.0s
+[e1_iid_dqn s0] round  35 acc 0.7668 loss 0.5488 maxshare 0.71 sel [0, 1, 3, 6, 8, 10, 13, 14] (explore) 110.38s
+[e1_iid_dqn s0] round  36 acc 0.7668 loss 0.5461 maxshare 0.71 sel [1, 2, 3, 4, 9, 10, 13, 14] (explore) 144.03s
+[e1_iid_dqn s0] round  37 acc 0.7668 loss 0.5446 maxshare 0.71 sel [1, 4, 6, 7, 8, 9, 11, 12]  151.4s
+[e1_iid_dqn s0] round  38 acc 0.7668 loss 0.5448 maxshare 0.71 sel [1, 4, 6, 7, 8, 9, 10, 12]  137.47s
+[e1_iid_dqn s0] round  39 acc 0.7668 loss 0.5436 maxshare 0.71 sel [1, 4, 7, 8, 9, 10, 11, 12]  142.1s
+[e1_iid_dqn s0] round  40 acc 0.7668 loss 0.5438 maxshare 0.71 sel [1, 4, 7, 8, 9, 10, 11, 12]  136.79s
+[e1_iid_dqn s0] round  41 acc 0.7668 loss 0.5437 maxshare 0.71 sel [1, 4, 7, 8, 9, 10, 11, 12]  105.74s
+[e1_iid_dqn s0] round  42 acc 0.7668 loss 0.5431 maxshare 0.71 sel [1, 4, 7, 8, 9, 10, 11, 12]  114.31s
+[e1_iid_dqn s0] round  43 acc 0.7673 loss 0.5429 maxshare 0.71 sel [1, 4, 7, 8, 9, 10, 11, 12]  122.8s
+[e1_iid_dqn s0] round  44 acc 0.7668 loss 0.5428 maxshare 0.71 sel [1, 4, 7, 8, 9, 10, 11, 12]  104.46s
+[e1_iid_dqn s0] round  45 acc 0.7668 loss 0.5450 maxshare 0.71 sel [0, 1, 5, 9, 10, 11, 12, 13] (explore) 104.27s
+[e1_iid_dqn s0] round  46 acc 0.7673 loss 0.5423 maxshare 0.71 sel [1, 4, 7, 8, 9, 10, 11, 12]  111.85s
+[e1_iid_dqn s0] round  47 acc 0.7673 loss 0.5417 maxshare 0.71 sel [1, 2, 4, 7, 8, 9, 11, 12]  113.57s
+[e1_iid_dqn s0] round  48 acc 0.7673 loss 0.5432 maxshare 0.71 sel [0, 5, 7, 9, 11, 12, 13, 14] (explore) 112.8s
+[e1_iid_dqn s0] round  49 acc 0.7673 loss 0.5410 maxshare 0.71 sel [1, 4, 7, 8, 9, 11, 12, 14]  122.92s
+[e1_iid_dqn s0] round  50 acc 0.7673 loss 0.5406 maxshare 0.71 sel [1, 4, 7, 8, 9, 11, 12, 14]  125.32s
+[e1_iid_dqn s0] round  51 acc 0.7673 loss 0.5410 maxshare 0.71 sel [1, 4, 7, 8, 9, 11, 12, 14]  119.81s
+[e1_iid_dqn s0] round  52 acc 0.7674 loss 0.5407 maxshare 0.71 sel [1, 4, 7, 8, 9, 11, 12, 14]  121.08s
+[e1_iid_dqn s0] round  53 acc 0.7674 loss 0.5402 maxshare 0.71 sel [1, 4, 7, 8, 9, 11, 12, 14]  106.54s
+[e1_iid_dqn s0] round  54 acc 0.7674 loss 0.5396 maxshare 0.71 sel [1, 4, 6, 7, 9, 11, 12, 14]  104.25s
+[e1_iid_dqn s0] round  55 acc 0.7674 loss 0.5399 maxshare 0.71 sel [1, 4, 6, 7, 9, 11, 12, 14]  136.02s
+[e1_iid_dqn s0] round  56 acc 0.7674 loss 0.5405 maxshare 0.71 sel [0, 1, 4, 6, 9, 11, 12, 14]  142.31s
+[e1_iid_dqn s0] round  57 acc 0.7674 loss 0.5406 maxshare 0.71 sel [0, 1, 4, 6, 9, 11, 12, 14]  116.27s
+[e1_iid_dqn s0] round  58 acc 0.7674 loss 0.5403 maxshare 0.71 sel [0, 1, 4, 6, 9, 11, 12, 14]  101.51s
+[e1_iid_dqn s0] round  59 acc 0.7674 loss 0.5404 maxshare 0.71 sel [0, 1, 4, 6, 9, 11, 12, 14]  123.43s
+[e1_iid_dqn s0] round  60 acc 0.7674 loss 0.5401 maxshare 0.71 sel [0, 1, 4, 6, 9, 11, 12, 14]  128.31s
+[e1_iid_dqn s0] round  61 acc 0.7675 loss 0.5401 maxshare 0.71 sel [0, 1, 4, 6, 9, 11, 12, 14]  122.0s
+[e1_iid_dqn s0] round  62 acc 0.7675 loss 0.5402 maxshare 0.71 sel [0, 1, 5, 6, 9, 11, 12, 14]  124.14s
+[e1_iid_dqn s0] round  63 acc 0.7675 loss 0.5402 maxshare 0.71 sel [0, 1, 5, 6, 9, 11, 12, 14]  124.33s
+[e1_iid_dqn s0] round  64 acc 0.7675 loss 0.5405 maxshare 0.71 sel [0, 1, 5, 6, 9, 11, 12, 14]  102.45s
+[e1_iid_dqn s0] round  65 acc 0.7675 loss 0.5408 maxshare 0.71 sel [1, 2, 4, 5, 7, 9, 10, 12] (explore) 120.52s
+[e1_iid_dqn s0] round  66 acc 0.7675 loss 0.5398 maxshare 0.71 sel [0, 1, 5, 6, 9, 11, 12, 14]  100.81s
+[e1_iid_dqn s0] round  67 acc 0.7675 loss 0.5404 maxshare 0.71 sel [0, 1, 5, 6, 9, 11, 12, 14]  111.5s
+[e1_iid_dqn s0] round  68 acc 0.7675 loss 0.5403 maxshare 0.71 sel [0, 1, 5, 6, 9, 11, 12, 14]  130.29s
+[e1_iid_dqn s0] round  69 acc 0.7675 loss 0.5394 maxshare 0.71 sel [0, 1, 2, 5, 6, 9, 11, 14]  112.33s
+[e1_iid_dqn s0] round  70 acc 0.7675 loss 0.5390 maxshare 0.71 sel [0, 1, 2, 5, 6, 9, 11, 14]  110.61s
+[e1_iid_dqn s0] round  71 acc 0.7675 loss 0.5393 maxshare 0.71 sel [0, 1, 2, 5, 6, 9, 11, 14]  109.54s
+[e1_iid_dqn s0] round  72 acc 0.7675 loss 0.5388 maxshare 0.71 sel [0, 1, 2, 5, 6, 9, 11, 14]  103.77s
+[e1_iid_dqn s0] round  73 acc 0.7675 loss 0.5392 maxshare 0.71 sel [0, 1, 2, 5, 6, 9, 11, 14]  120.25s
+[e1_iid_dqn s0] round  74 acc 0.7675 loss 0.5384 maxshare 0.71 sel [0, 1, 2, 6, 9, 11, 12, 14]  98.14s
+[e1_iid_dqn s0] round  75 acc 0.7675 loss 0.5378 maxshare 0.71 sel [0, 1, 2, 6, 9, 11, 12, 14]  127.05s
+[e1_iid_dqn s0] round  76 acc 0.7675 loss 0.5407 maxshare 0.71 sel [0, 1, 2, 3, 6, 9, 11, 12]  108.17s
+[e1_iid_dqn s0] round  77 acc 0.7675 loss 0.5405 maxshare 0.71 sel [1, 2, 3, 6, 9, 10, 11, 12]  123.15s
+[e1_iid_dqn s0] round  78 acc 0.7675 loss 0.5431 maxshare 0.71 sel [2, 3, 4, 6, 8, 9, 13, 14] (explore) 124.41s
+[e1_iid_dqn s0] round  79 acc 0.7675 loss 0.5409 maxshare 0.71 sel [1, 2, 3, 4, 9, 10, 11, 12]  119.63s
+[e1_iid_dqn s0] round  80 acc 0.7675 loss 0.5400 maxshare 0.71 sel [0, 1, 2, 3, 9, 10, 11, 12]  129.27s
+[e1_iid_dqn s0] round  81 acc 0.7675 loss 0.5414 maxshare 0.71 sel [0, 1, 2, 3, 4, 10, 11, 12]  108.66s
+[e1_iid_dqn s0] round  82 acc 0.7675 loss 0.5412 maxshare 0.71 sel [0, 1, 2, 3, 4, 10, 11, 12]  116.64s
+[e1_iid_dqn s0] round  83 acc 0.7675 loss 0.5412 maxshare 0.71 sel [0, 1, 2, 3, 4, 9, 10, 12]  122.72s
+[e1_iid_dqn s0] round  84 acc 0.7675 loss 0.5414 maxshare 0.71 sel [0, 1, 2, 3, 4, 9, 10, 12]  105.86s
+[e1_iid_dqn s0] round  85 acc 0.7675 loss 0.5413 maxshare 0.71 sel [0, 1, 2, 3, 4, 9, 10, 12]  116.01s
+[e1_iid_dqn s0] round  86 acc 0.7675 loss 0.5411 maxshare 0.71 sel [0, 1, 2, 3, 4, 9, 10, 12]  126.3s
+[e1_iid_dqn s0] round  87 acc 0.7675 loss 0.5425 maxshare 0.71 sel [1, 2, 3, 6, 8, 9, 12, 13] (explore) 115.0s
+[e1_iid_dqn s0] round  88 acc 0.7675 loss 0.5419 maxshare 0.71 sel [0, 1, 2, 3, 4, 8, 9, 10]  132.5s
+[e1_iid_dqn s0] round  89 acc 0.7675 loss 0.5417 maxshare 0.71 sel [0, 1, 2, 3, 4, 8, 9, 10]  131.7s
+[e1_iid_dqn s0] round  90 acc 0.7675 loss 0.5419 maxshare 0.71 sel [0, 1, 2, 3, 4, 8, 9, 10]  112.68s
+[e1_iid_dqn s0] round  91 acc 0.7675 loss 0.5442 maxshare 0.71 sel [0, 2, 3, 4, 8, 9, 10, 13]  107.97s
+[e1_iid_dqn s0] round  92 acc 0.7675 loss 0.5430 maxshare 0.71 sel [1, 2, 3, 4, 8, 9, 10, 13]  111.31s
+[e1_iid_dqn s0] round  93 acc 0.7675 loss 0.5428 maxshare 0.71 sel [1, 2, 3, 4, 8, 9, 10, 13]  121.8s
+[e1_iid_dqn s0] round  94 acc 0.7675 loss 0.5422 maxshare 0.71 sel [1, 2, 3, 4, 6, 9, 10, 13]  126.35s
+[e1_iid_dqn s0] round  95 acc 0.7675 loss 0.5426 maxshare 0.71 sel [1, 2, 3, 4, 6, 9, 10, 13]  100.61s
+[e1_iid_dqn s0] round  96 acc 0.7675 loss 0.5423 maxshare 0.71 sel [1, 2, 3, 4, 6, 9, 10, 13]  103.52s
+[e1_iid_dqn s0] round  97 acc 0.7675 loss 0.5428 maxshare 0.71 sel [1, 2, 3, 4, 6, 9, 10, 13]  122.34s
+[e1_iid_dqn s0] round  98 acc 0.7675 loss 0.5430 maxshare 0.71 sel [0, 1, 3, 4, 6, 9, 10, 13]  124.52s
+[e1_iid_dqn s0] round  99 acc 0.7675 loss 0.5431 maxshare 0.71 sel [0, 1, 3, 4, 6, 9, 10, 13]  120.33s
+[e1_iid_dqn s0] round 100 acc 0.7675 loss 0.5434 maxshare 0.71 sel [0, 1, 3, 4, 6, 9, 10, 13]  126.07s
+{
+ "name": "e1_iid_dqn",
+ "seed": 0,
+ "status": "ok",
+ "rounds": {
+  "1": {
+   "acc": 0.7581938827945218,
+   "macro_f1": 0.392200373604928,
+   "auc_macro": 0.942732319555056,
+   "best": 0.7613217453473045,
+   "worst": 0.7248933175450747,
+   "unseen_acc": 0.680286697894915,
+   "energy_cum": 1.4469238383240524
+  },
+  "50": {
+   "acc": 0.767253513259903,
+   "macro_f1": 0.4177209966648373,
+   "auc_macro": 0.9532301832631285,
+   "best": 0.7673763935744766,
+   "worst": 0.7440514756808686,
+   "unseen_acc": 0.6944805011569501,
+   "energy_cum": 72.29616257300157
+  },
+  "100": {
+   "acc": 0.7674769320136732,
+   "macro_f1": 0.41815393595805395,
+   "auc_macro": 0.9505913649066233,
+   "best": 0.7675327867021158,
+   "worst": 0.7443084072477044,
+   "unseen_acc": 0.6950448670918223,
+   "energy_cum": 144.6088815492103
+  }
+ },
+ "minutes": 204.72
+}
