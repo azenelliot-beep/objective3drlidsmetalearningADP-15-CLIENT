@@ -44,6 +44,8 @@ def launch(jobs: list[tuple[str, int]], parallel: int, csv: str | None, rounds: 
             env = dict(os.environ)
             if n_gpu:
                 env["CUDA_VISIBLE_DEVICES"] = str(k % n_gpu)
+            else:   # CPU: one thread per run so parallel runs do not fight over cores
+                env.update(OMP_NUM_THREADS="1", MKL_NUM_THREADS="1")
             k += 1
             cmd = [sys.executable, str(SRC / "fl.py"), "--config", f"kaur2024/configs/{name}.yaml",
                    "--seed", str(seed)] + (["--csv", csv] if csv else []) + (["--rounds", str(rounds)] if rounds else [])

@@ -128,5 +128,21 @@ class FlatAdam:
         self.flat.grad = None
 
 
+class FlatSGD:
+    """Plain gradient descent on the flat stacked tensor: w <- w - eta * grad.
+    [PAPER] Eqs. 17 and 24 (no momentum, no weight decay). Chosen over Adam by the user on
+    2026-11-08 (SPEC section 7, option A) because Adam with eta = 0.2 collapses."""
+
+    def __init__(self, flat: torch.Tensor, lr, *unused, **unused_kw):
+        self.flat, self.lr = flat, lr
+        self.t = torch.zeros(flat.shape[0], 1, device=flat.device, dtype=flat.dtype)
+
+    @torch.no_grad()
+    def step(self, a: int):
+        self.flat[:a] -= self.lr * self.flat.grad[:a]
+        self.t[:a] += 1
+        self.flat.grad = None
+
+
 def n_params(state: dict) -> int:
     return int(sum(v.numel() for v in state.values()))

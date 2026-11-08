@@ -23,11 +23,13 @@ model:                    # [PAPER] Table I(B) p.7 and Sec. IV-B p.6
   seq_len: 1              # [GAP-FILL G3] each record is a length-1 sequence
 
 local:
-  optimizer: adam         # [PAPER] Table I(B)
+  # [PAPER] Eqs. 17/24 plain gradient descent. Table I(B) says Adam, but Adam with eta = 0.2
+  # collapses to one class (SPEC section 7); user chose SGD on 2026-11-08 (option A).
+  optimizer: sgd
   lr: 0.2                 # [PAPER] Fig. 4 (eta = 0.2); see SPEC C3
-  adam_betas: [0.9, 0.999]  # [GAP-FILL G19] framework defaults (Keras/PyTorch), not stated
-  adam_eps: 1.0e-7        # [GAP-FILL G19] Keras default epsilon (the paper used Keras, Table I(A))
-  reset_optimizer_each_round: true  # [GAP-FILL G19] fresh local optimizer every round
+  adam_betas: [0.9, 0.999]  # [GAP-FILL G19] only used if optimizer: adam
+  adam_eps: 1.0e-7        # [GAP-FILL G19] only used if optimizer: adam
+  reset_optimizer_each_round: true  # [GAP-FILL G19] fresh local optimizer every round (no state for SGD)
   batch_size: 20          # [PAPER] Fig. 4 (Lambda = 20)
   epochs: 5               # [PAPER] Table I(B) "Local Epochs 5"
   loss: cross_entropy     # [GAP-FILL G4] softmax CE, lambda = 0 (no Eq. 21 regulariser)

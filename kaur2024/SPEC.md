@@ -6,8 +6,8 @@ PDF: `kaur2024/paper/objective2A.pdf` (13 pages, author's accepted version). Pag
 Everything for this baseline lives under `kaur2024/`. The repo's existing Chapter 6 code and
 results (`cells/`, `notebooks/`, `original/`, `tests/`, `results/`) are not touched.
 
-Status: **STOPPED at the Phase 2 smoke test: Adam with lr 0.2 collapses (task rule: stop and report).**
-See §7. Waiting for your decision on the local optimiser.
+Status: **Phase 2 core runs in progress.** Local optimiser = plain SGD with η = 0.2 (user decision
+2026-11-08, option A in §7).
 User decisions (2026-11-07): IID and non-IID both run on TON_IoT with 15 clients, labelled as
 the user's protocol, not the paper's (C1). Gap-fills G1-G17 are approved as proposed, to be
 changed only if the code fails or behaves suspiciously. Energy constants (G11) are not studied
@@ -401,3 +401,11 @@ Facts confirmed on real data:
   "Adam". *Recommended.*
 - B. Adam with lr = 1e-3 (Keras default): keeps Table I(B), and departs from Fig. 4's η.
 - C. Keep Adam with 0.2: every core result would be the 61.44% collapse.
+
+**Decision (2026-11-08): option A.** Local training uses plain gradient descent with η = 0.2
+([PAPER] Eqs. 17/24, Fig. 4). This departs from Table I(B)'s "Adam" and is reported as such.
+Smoke test with SGD (E1, 2 rounds, `results/extra/smoke/e1_iid_dqn_sgd_lr0.2_rounds2/`):
+- accuracy 75.82% after round 1 and 76.44% after round 2;
+- largest predicted-class share 0.72;
+- mean train loss 0.60;
+- about 48 s per round on 4 CPU threads.

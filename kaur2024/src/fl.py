@@ -31,7 +31,7 @@ from channel import Channel                                    # noqa: E402
 from data import CLASS_NAMES, load_prepared, repo_path         # noqa: E402
 from dqn_selector import Selector                              # noqa: E402
 from evaluate import evaluate, plot_roc                        # noqa: E402
-from gru_model import FlatAdam, GRUClassifier, Layout, functional_forward, param_names  # noqa: E402
+from gru_model import FlatAdam, FlatSGD, GRUClassifier, Layout, functional_forward, param_names  # noqa: E402
 
 
 # ------------------------------------------------------------------ config
@@ -74,7 +74,12 @@ def local_train(global_flat, layout, clients, X, y, cfg, gen):
     idx_lists = [torch.as_tensor(clients[o], device=dev) for o in order]
 
     flat = global_flat.detach().unsqueeze(0).repeat(C, 1).requires_grad_(True)
-    opt = FlatAdam(flat, lc["lr"], tuple(lc["adam_betas"]), lc["adam_eps"])   # [PAPER] Adam
+    if lc["optimizer"] == "sgd":       # [PAPER] Eqs. 17/24; user decision 2026-11-08 (SPEC section 7)
+        opt = FlatSGD(flat, lc["lr"])
+    elif lc["optimizer"] == "adam":    # [PAPER] Table I(B); collapses at lr 0.2 (SPEC section 7)
+        opt = FlatAdam(flat, lc["lr"], tuple(lc["adam_betas"]), lc["adam_eps"])
+    else:
+        raise ValueError(lc["optimizer"])
     loss_sum = torch.zeros(C, device=dev)
     n_seen = torch.zeros(C, device=dev)
     for _ in range(E):
