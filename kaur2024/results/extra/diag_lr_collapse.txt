@@ -1,0 +1,6 @@
+d = 158; dropped (>50 unique in train): ['dns_query', 'http_uri']; unseen test rows: 35438
+| optimiser | lr | epoch-1 train loss | test acc | largest predicted-class share |
+|---|---|---|---|---|
+| Adam | 0.2 | 2.2048 | 0.6144 | 1.000 |
+| SGD | 0.2 | 0.8861 | 0.6943 | 0.589 |
+| Adam | 0.001 | 0.7460 | 0.7398 | 0.597 |

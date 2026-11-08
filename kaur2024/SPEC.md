@@ -6,7 +6,8 @@ PDF: `kaur2024/paper/objective2A.pdf` (13 pages, author's accepted version). Pag
 Everything for this baseline lives under `kaur2024/`. The repo's existing Chapter 6 code and
 results (`cells/`, `notebooks/`, `original/`, `tests/`, `results/`) are not touched.
 
-Status: **Phase 2 code written and tested on synthetic data; waiting for the GPU smoke test on Kaggle.**
+Status: **STOPPED at the Phase 2 smoke test: Adam with lr 0.2 collapses (task rule: stop and report).**
+See §7. Waiting for your decision on the local optimiser.
 User decisions (2026-11-07): IID and non-IID both run on TON_IoT with 15 clients, labelled as
 the user's protocol, not the paper's (C1). Gap-fills G1-G17 are approved as proposed, to be
 changed only if the code fails or behaves suspiciously. Energy constants (G11) are not studied
@@ -354,3 +355,49 @@ in `kaur2024/tests/test_kaur_core.py` check that:
 - [Likely] Under Eq. 8 the reward is dominated by energy, and energy grows with D_i. In the
   non-IID setting the DQN will therefore learn to prefer **small** clients. This is the paper's
   reward as written; X2 (random selection) shows what it costs or gains.
+
+---
+
+## 7. Smoke test on real data: Adam + lr 0.2 collapses (2026-11-08, run on CPU in this container)
+
+The CSV was uploaded as a zip; its sha256 matches the Kaggle file. Re-running `phase1_data.py`
+here gave identical split and partitions (all counts equal). The only differences in the report
+are cosmetic: the pandas version labels the text dtype `str` instead of `object`, and one tie
+changes the order of the example `http_uri` values.
+
+**E1 (IID, DQN), seed 0, 2 rounds, configuration as approved (Adam, lr 0.2, batch 20, 5 epochs)**
+(`results/extra/smoke/e1_iid_dqn_adam_lr0.2_rounds2/`):
+
+| round | global acc | macro F1 | macro AUC | predicted-class share | mean train loss | local models |
+|---|---|---|---|---|---|---|
+| 1 | 61.44% | 7.61% | 0.512 | 100% one class | 2.78 | 6 predict only Normal (61.44%), 2 only one other class (4.47%) |
+| 2 | 61.44% | 7.61% | 0.442 | 100% one class | 1.96 | 7 only Normal, 1 only one other class (4.44%) |
+
+- 61.44% = 55,000 / 89,518: every test row is predicted "Normal".
+- The round-1 training loss (2.78) is above that of uniform guessing over 10 classes (ln 10 = 2.30).
+- About 70 s per IID round on this CPU.
+
+**Diagnostic** (`tools/diag_lr_collapse.py`, output in `results/extra/diag_lr_collapse.txt`; not a
+result, nothing tuned). One client, 1 epoch, the same code:
+
+| optimiser | lr | train loss | test acc | predicted-class share |
+|---|---|---|---|---|
+| Adam | 0.2 (configured) | 2.20 | 61.44% | 100% (collapsed) |
+| SGD | 0.2 (Eqs. 17/24 reading) | 0.89 | 69.43% | 58.9% |
+| Adam | 0.001 (framework default) | 0.75 | 73.98% | 59.7% |
+
+Conclusion: the collapse comes from Adam at step size 0.2, not from a bug (the same code learns at
+lr 0.001, and with SGD at 0.2). The paper is internally inconsistent here (C3): Table I(B) says
+Adam, while Eqs. 17 and 24 define η as a plain gradient step. Fig. 4's η = 0.2 fits the SGD reading.
+
+Facts confirmed on real data:
+- d = 158 input features.
+- Dropped for having more than 50 unique values in train: `dns_query` and `http_uri`.
+- Unseen test subset (G17), on encoded features: 35,438 rows (35,454 when counted on raw strings
+  in X3).
+
+**Decision needed (the code is NOT changed until you choose):**
+- A. SGD with η = 0.2: keeps the paper's numeric value and Eqs. 17/24, and departs from Table I(B)'s
+  "Adam". *Recommended.*
+- B. Adam with lr = 1e-3 (Keras default): keeps Table I(B), and departs from Fig. 4's η.
+- C. Keep Adam with 0.2: every core result would be the 61.44% collapse.

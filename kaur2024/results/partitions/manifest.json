@@ -1,0 +1,12 @@
+{
+  "csv_name": "TON_IoT_Train_Test_Network.csv",
+  "csv_sha256": "65d5465df1809b984fd10e4703bc9c012d1aefd11803773856364216f0a3520d",
+  "n_rows": 461043,
+  "partition_seed": 0,
+  "n_clients": 15,
+  "dirichlet_alpha": 0.5,
+  "min_client_size": 20,
+  "dirichlet_tries": 1,
+  "index_base": "0-based CSV row position, header excluded",
+  "rng": "numpy.default_rng(0); split, then IID, then Dirichlet, in that order"
+}
