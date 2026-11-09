@@ -64,20 +64,17 @@ const doc = new Document({
       bullet([["Energy model ", true], ["(Eqs. 1–4); ", false], ["preprocessing: ", true], ["drop columns, one-hot, min-max (Eq. 19)."]]),
       bullet([["FedAvg baseline: ", true], ["same GRU, all 15 clients every round, no DQN."]]),
 
-      h("2. Paper claims vs my reimplementation (TON_IoT)"),
-      table([3638, 1200, 1200, 1200, 1200, 1200],
-        ["Model / source", "Accuracy", "Precision", "Recall", "F1", "AUC"],
+      h("2. Results: previous work vs my model (same conditions)"),
+      runs([["Conditions: ", true], ["TON_IoT, non-IID (Dirichlet \u03b1 = 0.5), 15 clients (8 selected per round by the DQN), 5 local epochs, batch 20, same train/test split (test = 89,518 rows)."]], 100),
+      table([2938, 1100, 1120, 1120, 1120, 1120, 1120],
+        ["Model", "Rounds", "Accuracy", "Precision", "Recall", "F1", "AUC"],
         [
-          ["Paper: proposed (Table V, reported)", "99.95", "98.63", "99.98", "99.99", "99.9 (Fig. 7)"],
-          ["Paper: proposed (implied by its own per-class rows)", "96.47", "99.19", "93.38", "95.02", "–"],
-          ["Mine: proposed, non-IID, round 50", "76.69", "66.42", "45.86", "41.53", "95.41"],
-          ["Mine: proposed, non-IID, round 100", "76.72", "64.14", "45.99", "41.91", "95.75"],
-          ["Paper: FedAvg (Table V)", "68.07", "55.63", "49.00", "47.00", "–"],
-          ["Mine: FedAvg, non-IID, round 50", "72.80", "67.64", "36.06", "34.55", "95.72"],
+          ["Previous work: Kaur (2024), GRU + FL + DQN (reimplemented)", "50", "76.69", "66.42", "45.86", "41.53", "95.41"],
+          ["Previous work: Kaur (2024), GRU + FL + DQN (reimplemented)", "100", "76.72", "64.14", "45.99", "41.91", "95.75"],
+          ["My model", "50", "", "", "", "", ""],
+          ["My model", "100", "", "", "", "", ""],
         ], [2, 3]),
-      p("All values in % (paper AUC read from Fig. 7: 0.999). Precision, recall and F1 are macro averages over 10 classes. The paper does not state the "
-        + "data setting, client count or round of its Table V. Non-IID accuracy varies by round: the mean over rounds "
-        + "41–50 is 75.81% (range 72.34–76.69). On test rows never seen in training, mine scores 69.33% (round 50).",
+      p("All values in %. Precision, recall and F1 are macro averages over the 10 classes. Fill in your model\u2019s values in the highlighted rows.",
         { size: 16, italics: true, after: 120 }),
 
       h("3. Setup used"),
