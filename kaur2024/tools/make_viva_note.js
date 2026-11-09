@@ -64,17 +64,17 @@ const doc = new Document({
       bullet([["Energy model ", true], ["(Eqs. 1–4); ", false], ["preprocessing: ", true], ["drop columns, one-hot, min-max (Eq. 19)."]]),
       bullet([["FedAvg baseline: ", true], ["same GRU, all 15 clients every round, no DQN."]]),
 
-      h("2. Results: previous work vs my model (same conditions)"),
-      runs([["Conditions: ", true], ["TON_IoT, non-IID (Dirichlet \u03b1 = 0.5), 15 clients (8 selected per round by the DQN), 5 local epochs, batch 20, same train/test split (test = 89,518 rows)."]], 100),
-      table([2938, 1100, 1120, 1120, 1120, 1120, 1120],
-        ["Model", "Rounds", "Accuracy", "Precision", "Recall", "F1", "AUC"],
+      h("2. Kaur (2024): claimed in the paper vs reimplemented (TON_IoT)"),
+      table([2500, 1830, 900, 1050, 1050, 750, 778, 780],
+        ["Source", "Conditions", "Rounds", "Accuracy", "Precision", "Recall", "F1", "AUC"],
         [
-          ["Previous work: Kaur (2024), GRU + FL + DQN (reimplemented)", "50", "76.69", "66.42", "45.86", "41.53", "95.41"],
-          ["Previous work: Kaur (2024), GRU + FL + DQN (reimplemented)", "100", "76.72", "64.14", "45.99", "41.91", "95.75"],
-          ["My model", "50", "", "", "", "", ""],
-          ["My model", "100", "", "", "", "", ""],
-        ], [2, 3]),
-      p("All values in %. Precision, recall and F1 are macro averages over the 10 classes. Fill in your model\u2019s values in the highlighted rows.",
+          ["Claimed in the paper (Table V, Fig. 7)", "TON_IoT; IID/non-IID and clients not stated", "not stated", "99.95", "98.63", "99.98", "99.99", "99.9"],
+          ["Reimplemented", "TON_IoT, non-IID, 15 clients", "50", "76.69", "66.42", "45.86", "41.53", "95.41"],
+          ["Reimplemented", "TON_IoT, non-IID, 15 clients", "100", "76.72", "64.14", "45.99", "41.91", "95.75"],
+        ], [1, 2]),
+      p("All values in %. Precision, recall and F1 are macro averages over the 10 classes. The paper gives no TON_IoT result "
+        + "for non-IID or for 15 clients; its 15-client non-IID result (Table VIII: 97.98% accuracy at round 50) is on a "
+        + "different dataset, Edge-IIoT.",
         { size: 16, italics: true, after: 120 }),
 
       h("3. Setup used"),
