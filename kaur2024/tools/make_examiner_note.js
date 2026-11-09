@@ -64,23 +64,25 @@ const doc = new Document({
       bullet([["Not stated for TON_IoT: ", true], ["IID or non-IID, number of clients, and the round of the result. Their 15-client non-IID experiment (Table VIII) is on a different dataset, Edge-IIoT."]]),
 
       h("2. My reimplementation on TON_IoT"),
-      bullet([["Why: ", true], ["the paper gives no TON_IoT result under non-IID data, so I reran their method under the same conditions as my own model."]]),
-      bullet([["Conditions: ", true], ["TON_IoT, non-IID (Dirichlet α = 0.5), 15 clients (DQN selects 8 per round), 5 local epochs, batch 20, fixed train/test split (test = 89,518 rows, identical to their Table II)."]]),
+      bullet([["Why: ", true], ["the paper does not state the setting of its TON_IoT result, so I reran their method under stated conditions, IID and non-IID, matching my own model."]]),
+      bullet([["Conditions: ", true], ["TON_IoT, IID and non-IID (Dirichlet α = 0.5), 15 clients (DQN selects 8 per round), 5 local epochs, batch 20, fixed train/test split (test = 89,518 rows, identical to their Table II)."]]),
       bullet([["Use: ", true], ["my model is compared against this reimplementation under identical conditions (same data split, clients and 50-round budget)."]]),
 
-      h("3. Results: claimed vs reimplemented"),
+      h("3. Results: claimed vs reimplemented (IID and non-IID)"),
       table([2500, 1830, 900, 1050, 1050, 750, 778, 780],
         ["Source", "Conditions", "Rounds", "Accuracy", "Precision", "Recall", "F1", "AUC"],
         [
-          ["Claimed in the paper (Table V, Fig. 7)", "TON_IoT; IID/non-IID and clients not stated", "not stated", "99.95", "98.63", "99.98", "99.99", "99.9"],
+          ["Claimed in the paper (Table V, Fig. 7)", "TON_IoT; IID/non-IID and clients not stated (most likely IID)", "not stated", "99.95", "98.63", "99.98", "99.99", "99.9"],
+          ["Reimplemented", "TON_IoT, IID, 15 clients", "50", "76.73", "66.46", "46.02", "41.77", "95.32"],
+          ["Reimplemented", "TON_IoT, IID, 15 clients", "100", "76.75", "66.56", "46.06", "41.82", "95.06"],
           ["Reimplemented", "TON_IoT, non-IID, 15 clients", "50", "76.69", "66.42", "45.86", "41.53", "95.41"],
           ["Reimplemented", "TON_IoT, non-IID, 15 clients", "100", "76.72", "64.14", "45.99", "41.91", "95.75"],
-        ], [1, 2]),
-      p("All values in %. Precision, recall and F1 are macro averages over the 10 classes.", { size: 16, italics: true, after: 100 }),
+        ], [1, 2, 3, 4]),
+      p("All values in %. Precision, recall and F1 are macro averages over the 10 classes. \u201cMost likely IID\u201d is an inference: IID is the only TON_IoT setting the paper mentions (p.9).", { size: 16, italics: true, after: 100 }),
 
       h("4. How the reimplementation differs from the published work"),
       table([2000, 2400, 2500, 2738], ["Item", "Paper", "Reimplementation", "Reason"], [
-        ["Data distribution", "Not stated for TON_IoT", "Non-IID, Dirichlet α = 0.5", "Match my model’s setting"],
+        ["Data distribution", "Not stated for TON_IoT (most likely IID)", "IID and non-IID (Dirichlet α = 0.5)", "Cover the paper’s likely setting and my model’s"],
         ["Clients", "Not stated (15 only on Edge-IIoT)", "15, DQN selects 8 per round", "Follows their Table VIII protocol"],
         ["Rounds", "100 (Table I)", "100; reported at 50 and 100", "50 = same budget as my model"],
         ["Train / test rows", "395,467 / 89,518 (Table II)", "371,485 / 89,518", "The file has too few rows for Table II’s train counts"],

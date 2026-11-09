@@ -54,7 +54,7 @@ const doc = new Document({
     children: [
       new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun("Viva note: Reimplementation of Kaur (2024)")] }),
       p("GRU-assisted federated learning with DQN client selection for IIoT intrusion detection. "
-        + "IEEE Trans. Artificial Intelligence, 2024, DOI 10.1109/TAI.2024.3443787. Dataset: TON_IoT (Train_Test_Network), non-IID.",
+        + "IEEE Trans. Artificial Intelligence, 2024, DOI 10.1109/TAI.2024.3443787. Dataset: TON_IoT (Train_Test_Network), IID and non-IID.",
         { italics: true, size: 18, after: 120 }),
 
       h("1. What I reimplemented"),
@@ -64,15 +64,17 @@ const doc = new Document({
       bullet([["Energy model ", true], ["(Eqs. 1–4); ", false], ["preprocessing: ", true], ["drop columns, one-hot, min-max (Eq. 19)."]]),
       bullet([["FedAvg baseline: ", true], ["same GRU, all 15 clients every round, no DQN."]]),
 
-      h("2. Kaur (2024): claimed in the paper vs reimplemented (TON_IoT)"),
+      h("2. Kaur (2024): claimed in the paper vs reimplemented (TON_IoT, IID and non-IID)"),
       table([2500, 1830, 900, 1050, 1050, 750, 778, 780],
         ["Source", "Conditions", "Rounds", "Accuracy", "Precision", "Recall", "F1", "AUC"],
         [
-          ["Claimed in the paper (Table V, Fig. 7)", "TON_IoT; IID/non-IID and clients not stated", "not stated", "99.95", "98.63", "99.98", "99.99", "99.9"],
+          ["Claimed in the paper (Table V, Fig. 7)", "TON_IoT; IID/non-IID and clients not stated (most likely IID)", "not stated", "99.95", "98.63", "99.98", "99.99", "99.9"],
+          ["Reimplemented", "TON_IoT, IID, 15 clients", "50", "76.73", "66.46", "46.02", "41.77", "95.32"],
+          ["Reimplemented", "TON_IoT, IID, 15 clients", "100", "76.75", "66.56", "46.06", "41.82", "95.06"],
           ["Reimplemented", "TON_IoT, non-IID, 15 clients", "50", "76.69", "66.42", "45.86", "41.53", "95.41"],
           ["Reimplemented", "TON_IoT, non-IID, 15 clients", "100", "76.72", "64.14", "45.99", "41.91", "95.75"],
-        ], [1, 2]),
-      p("All values in %. Precision, recall and F1 are macro averages over the 10 classes. The paper gives no TON_IoT result "
+        ], [1, 2, 3, 4]),
+      p("All values in %. Precision, recall and F1 are macro averages over the 10 classes. \u201cMost likely IID\u201d is an inference: IID is the only TON_IoT setting the paper mentions (p.9). The paper gives no TON_IoT result "
         + "for non-IID or for 15 clients; its 15-client non-IID result (Table VIII: 97.98% accuracy at round 50) is on a "
         + "different dataset, Edge-IIoT.",
         { size: 16, italics: true, after: 120 }),
